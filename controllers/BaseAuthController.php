@@ -2,15 +2,14 @@
 
 namespace app\controllers;
 
+use app\models\Account;
 use Yii;
-use app\models\Admin;
-use app\models\User;
 use yii\filters\AccessControl;
 use yii\helpers\ArrayHelper;
 
 class BaseAuthController extends BaseApiController
 {
-    protected User|null $user = null;
+    protected Account|null $user = null;
 
     public function behaviors(): array
     {
@@ -45,7 +44,7 @@ class BaseAuthController extends BaseApiController
         if (strlen($accessToken) !== 64) {
             return false;
         }
-        // $this->user = User::findOne(['auth_key' => $accessToken]);
+        $this->user = Account::findOne(['access_token' => $accessToken]);
         return $this->user !== null;
     }
 }

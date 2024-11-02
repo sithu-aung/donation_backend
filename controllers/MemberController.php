@@ -6,7 +6,7 @@ use app\models\Member;
 use Yii;
 use yii\web\Controller;
 
-class MemberController extends Controller
+class MemberController extends BaseAuthController
 {
     public function actionIndex($page, $limit, $q = '')
     {

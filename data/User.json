@@ -1,0 +1,15 @@
+[
+    {
+        "name": "Admin",
+        "email": "admin@gmail.com",
+        "password": "password",
+        "phone": "09958120397"        
+    },
+    {
+        "name": "Ko Kyaw Myo Oo",
+        "email": "kyawmyou@gmail.com",
+        "password": "password",
+        "phone": "09958120396"        
+    }
+
+]
