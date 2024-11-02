@@ -6,7 +6,7 @@ use app\models\RequestGive;
 use Yii;
 use yii\web\Controller;
 
-class RequestGiveController extends Controller
+class RequestGiveController extends BaseAuthController
 {
     public function actionIndex($page, $limit, $q = '')
     {

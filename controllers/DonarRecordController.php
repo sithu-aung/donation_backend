@@ -6,7 +6,7 @@ use app\models\DonarRecord;
 use Yii;
 use yii\web\Controller;
 
-class DonarRecordController extends Controller
+class DonarRecordController extends BaseAuthController
 {
     public function actionIndex($page, $limit, $q = '')
     {

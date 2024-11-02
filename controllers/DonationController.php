@@ -6,7 +6,7 @@ use app\models\Donation;
 use Yii;
 use yii\web\Controller;
 
-class DonationController extends Controller
+class DonationController extends BaseAuthController
 {
     public function actionIndex($page, $limit, $q = '')
     {

@@ -6,7 +6,7 @@ use app\models\Comment;
 use Yii;
 use yii\web\Controller;
 
-class CommentController extends Controller
+class CommentController extends BaseAuthController
 {
     public function actionIndex($page, $limit, $q = '')
     {

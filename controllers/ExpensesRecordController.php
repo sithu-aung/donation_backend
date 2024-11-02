@@ -6,7 +6,7 @@ use app\models\ExpensesRecord;
 use Yii;
 use yii\web\Controller;
 
-class ExpensesRecordController extends Controller
+class ExpensesRecordController extends BaseAuthController
 {
     public function actionIndex($page, $limit, $q = '')
     {

@@ -6,7 +6,7 @@ use app\models\Reaction;
 use Yii;
 use yii\web\Controller;
 
-class ReactionController extends Controller
+class ReactionController extends BaseAuthController
 {
     public function actionIndex($page, $limit, $q = '')
     {

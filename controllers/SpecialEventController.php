@@ -6,7 +6,7 @@ use app\models\SpecialEvent;
 use Yii;
 use yii\web\Controller;
 
-class SpecialEventController extends Controller
+class SpecialEventController extends BaseAuthController
 {
     public function actionIndex($page, $limit, $q = '')
     {
