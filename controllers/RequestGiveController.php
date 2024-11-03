@@ -4,7 +4,6 @@ namespace app\controllers;
 
 use app\models\RequestGive;
 use Yii;
-use yii\web\Controller;
 
 class RequestGiveController extends BaseAuthController
 {

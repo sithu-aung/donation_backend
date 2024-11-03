@@ -15,10 +15,12 @@ class MemberController extends BaseAuthController
             $query = $query->where(['like', 'name', $q]);
         }
         $query = $query->offset($page * $limit)->limit($limit)->orderBy("id");
+        $total = $query->count();
 
         return $this->asJson([
             'status' => 'ok',
             'data' => $query->all(),
+            'total' => $total,
         ]);
     }
 

@@ -50,6 +50,7 @@ class ReportController extends BaseAuthController
         return $this->asJson([
             'status' => 'ok',
             'data' => $diseaseData,
+            'totalDonations' => $totalDonations,
         ]);
     }
 
@@ -138,8 +139,57 @@ class ReportController extends BaseAuthController
             'data' => $genderData,
             'averageAge' => $averageAge,
             'ageRanges' => $ageRanges,
+            'totalDonations' => $totalDonations,
         ]);
     }
+
+    public function actionByBloodType()
+    {
+        $totalDonations = $this->getBloodDonations();
+
+        $bloodTypeData = Donation::find()
+            ->select(['member.blood_type', 'COUNT(*) as quantity'])
+            ->joinWith('member0')
+            ->groupBy('member.blood_type')
+            ->orderBy(['member.blood_type' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        foreach ($bloodTypeData as &$bloodType) {
+            $bloodType['percentage'] = round(($bloodType['quantity'] / $totalDonations) * 100, 1);
+            unset($bloodType['member0']);
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $bloodTypeData,
+            'totalDonations' => $totalDonations,
+        ]);
+    }
+
+    public function actionByHospital($limit = 20)
+    {
+        $totalDonations = $this->getBloodDonations();
+
+        $hospitalData = Donation::find()
+            ->select(['hospital', 'COUNT(*) as quantity'])
+            ->groupBy('hospital')
+            ->orderBy(['quantity' => SORT_DESC])
+            ->limit($limit)
+            ->asArray()
+            ->all();
+
+        foreach ($hospitalData as &$hospital) {
+            $hospital['percentage'] = round(($hospital['quantity'] / $totalDonations) * 100, 1);
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $hospitalData,
+            'totalDonations' => $totalDonations,
+        ]);
+    }
+
 
     protected function getTotalMembers()
     {
