@@ -31,14 +31,14 @@ class AuthController extends BaseApiController
         if ($account == null) {
             return [
                 'status' => 'error',
-                'data' => 'Invalid email or password'
+                'message' => 'Invalid email or password'
             ];
         }
 
         if (!Yii::$app->security->validatePassword($password, $account->password_hash)) {
             return [
                 'status' => 'error',
-                'data' => 'Invalid email or password'
+                'message' => 'Invalid email or password'
             ];
         }
 

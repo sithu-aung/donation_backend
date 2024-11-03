@@ -2,8 +2,6 @@
 
 namespace app\controllers;
 
-use app\models\Log;
-use Yii;
 use yii\filters\ContentNegotiator;
 use yii\filters\Cors;
 use yii\web\Controller;
@@ -32,6 +30,7 @@ class BaseApiController extends Controller
                         'http://localhost:5175',
                         'http://170.64.231.139',
                         'https://todolist.mooo.com',
+                        'http://localhost:49707'
                     ],
                     'Access-Control-Request-Method' => ['POST', 'GET', 'OPTIONS'],
                     'Access-Control-Allow-Credentials' => true,
