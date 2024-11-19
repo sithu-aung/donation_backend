@@ -7,7 +7,7 @@ use app\models\Donation;
 use app\models\ExpensesRecord;
 use app\models\Member;
 
-class ReportController extends BaseAuthController
+class ReportController extends BaseApiController
 {
     public function actionDashboard()
     {
@@ -140,6 +140,7 @@ class ReportController extends BaseAuthController
             'averageAge' => $averageAge,
             'ageRanges' => $ageRanges,
             'totalDonations' => $totalDonations,
+            'totalMembers' => $this->getTotalMembers(),
         ]);
     }
 
@@ -187,6 +188,7 @@ class ReportController extends BaseAuthController
             'status' => 'ok',
             'data' => $hospitalData,
             'totalDonations' => $totalDonations,
+
         ]);
     }
 

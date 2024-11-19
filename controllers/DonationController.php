@@ -6,19 +6,50 @@ use app\models\Donation;
 use Yii;
 use yii\web\Controller;
 
-class DonationController extends BaseAuthController
+class DonationController extends BaseApiController
 {
-    public function actionIndex($page, $limit, $q = '')
+    public function actionIndex($page, $limit, $q = '', $order = 'desc', $disease = '', $hospital = '')
     {
         $query = Donation::find();
+        
+        // Apply filters
         if ($q) {
-            $query = $query->where(['like', 'patient_name', $q]);
+            $query->andWhere(['like', 'patient_name', $q]);
         }
-        $query = $query->offset($page * $limit)->limit($limit)->orderBy("id");
+        if ($disease) {
+            $query->andWhere(['patient_disease' => $disease]);
+        }
+        if ($hospital) {
+            $query->andWhere(['hospital' => $hospital]);
+        }
+        
+        // Get total count after applying filters
+        $count = $query->count();
+        
+        $hospitals = Donation::find()
+            ->select('hospital')
+            ->distinct()
+            ->where(['not', ['hospital' => null]])
+            ->column();
+
+        $diseases = Donation::find()
+            ->select('patient_disease')
+            ->distinct()
+            ->where(['not', ['patient_disease' => null]])
+            ->column();
+
+        // Convert order parameter to SORT_ASC or SORT_DESC
+        $direction = strtolower($order) === 'desc' ? SORT_DESC : SORT_ASC;
+        $query = $query->offset($page * $limit)
+            ->limit($limit)
+            ->orderBy(['id' => $direction]);
 
         return $this->asJson([
             'status' => 'ok',
             'data' => $query->all(),
+            'total' => $count,
+            'hospitals' => $hospitals,
+            'diseases' => $diseases,
         ]);
     }
 

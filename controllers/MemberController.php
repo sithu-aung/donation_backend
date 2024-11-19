@@ -6,14 +6,27 @@ use app\models\Member;
 use Yii;
 use yii\web\Controller;
 
-class MemberController extends BaseAuthController
+class MemberController extends BaseApiController
 {
-    public function actionIndex($page, $limit, $q = '')
+    public function actionIndex($page, $limit, $q = '', $blood_type = null, $status = null)
     {
         $query = Member::find();
+        
+        // Search by name
         if ($q) {
             $query = $query->where(['like', 'name', $q]);
         }
+        
+        // Filter by blood type
+        if ($blood_type) {
+            $query = $query->andWhere(['blood_type' => $blood_type]);
+        }
+        
+        // Filter by status
+        if ($status) {
+            $query = $query->andWhere(['status' => $status]);
+        }
+        
         $query = $query->offset($page * $limit)->limit($limit)->orderBy("id");
         $total = $query->count();
 
