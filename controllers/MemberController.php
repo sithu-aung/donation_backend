@@ -56,24 +56,32 @@ class MemberController extends BaseApiController
     public function actionCreate()
     {
         $member = new Member();
-        $member->birth_date = Yii::$app->request->post('birth_date');
-        $member->blood_bank_card = Yii::$app->request->post('blood_bank_card');
-        $member->blood_type = Yii::$app->request->post('blood_type');
-        $member->father_name = Yii::$app->request->post('father_name');
-        $member->last_date = Yii::$app->request->post('last_date');
-        $member->member_count = Yii::$app->request->post('member_count');
-        $member->member_id = Yii::$app->request->post('member_id');
-        $member->name = Yii::$app->request->post('name');
-        $member->note = Yii::$app->request->post('note');
-        $member->nrc = Yii::$app->request->post('nrc');
-        $member->phone = Yii::$app->request->post('phone');
-        $member->address = Yii::$app->request->post('address');
-        $member->gender = Yii::$app->request->post('gender');
-        $member->profile_url = Yii::$app->request->post('profile_url');
-        $member->register_date = Yii::$app->request->post('register_date');
-        $member->total_count = Yii::$app->request->post('total_count');
-        $member->status = Yii::$app->request->post('status');
-        $member->owner_id = Yii::$app->request->post('owner_id');
+        $request = Yii::$app->request;
+        $rawBody = $request->getRawBody();
+        $data = json_decode($rawBody, true);
+        
+        // Generate member_id
+        $totalMembers = Member::find()->count();
+        $group = chr(65 + intval($totalMembers / 1000)); // Convert to letter A, B, C, etc.
+        $number = str_pad(($totalMembers % 1000) + 1, 4, '0', STR_PAD_LEFT);
+        $member->member_id = $group . '-' . $number;
+
+        $member->birth_date = $data['birth_date'] ?? null;
+        $member->blood_bank_card = $data['blood_bank_card'] ?? null;
+        $member->blood_type = $data['blood_type'] ?? null;
+        $member->father_name = $data['father_name'] ?? null;
+        $member->member_count = "0";
+        $member->name = $data['name'] ?? null;
+        $member->note = $data['note'] ?? null;
+        $member->nrc = $data['nrc'] ?? null;
+        $member->phone = $data['phone'] ?? null;
+        $member->address = $data['address'] ?? null;
+        $member->gender = $data['gender'] ?? null;
+        $member->register_date = date('Y-m-d H:i:s');
+        $member->total_count = "0";
+        $member->status = 'available';
+        $member->last_date = '-';
+        $member->owner_id = "1";
 
         if (!$member->save()) {
             return $this->asJson([
@@ -99,24 +107,25 @@ class MemberController extends BaseApiController
             ]);
         }
 
-        $member->birth_date = Yii::$app->request->post('birth_date');
-        $member->blood_bank_card = Yii::$app->request->post('blood_bank_card');
-        $member->blood_type = Yii::$app->request->post('blood_type');
-        $member->father_name = Yii::$app->request->post('father_name');
-        $member->last_date = Yii::$app->request->post('last_date');
-        $member->member_count = Yii::$app->request->post('member_count');
-        $member->member_id = Yii::$app->request->post('member_id');
-        $member->name = Yii::$app->request->post('name');
-        $member->note = Yii::$app->request->post('note');
-        $member->nrc = Yii::$app->request->post('nrc');
-        $member->phone = Yii::$app->request->post('phone');
-        $member->address = Yii::$app->request->post('address');
-        $member->gender = Yii::$app->request->post('gender');
-        $member->profile_url = Yii::$app->request->post('profile_url');
-        $member->register_date = Yii::$app->request->post('register_date');
-        $member->total_count = Yii::$app->request->post('total_count');
-        $member->status = Yii::$app->request->post('status');
-        $member->owner_id = Yii::$app->request->post('owner_id');
+        $request = Yii::$app->request;
+        $rawBody = $request->getRawBody();
+        $data = json_decode($rawBody, true);
+        
+        $member->birth_date = $data['birth_date'] ?? $member->birth_date;
+        $member->blood_bank_card = $data['blood_bank_card'] ?? $member->blood_bank_card;
+        $member->blood_type = $data['blood_type'] ?? $member->blood_type;
+        $member->father_name = $data['father_name'] ?? $member->father_name;
+        $member->last_date = $data['last_date'] ?? $member->last_date;
+        $member->member_count = $data['member_count'] ?? $member->member_count;
+        $member->name = $data['name'] ?? $member->name;
+        $member->note = $data['note'] ?? $member->note;
+        $member->nrc = $data['nrc'] ?? $member->nrc;
+        $member->phone = $data['phone'] ?? $member->phone;
+        $member->address = $data['address'] ?? $member->address;
+        $member->gender = $data['gender'] ?? $member->gender;
+        $member->profile_url = $data['profile_url'] ?? $member->profile_url;
+        $member->total_count = $data['total_count'] ?? $member->total_count;
+        $member->status = $data['status'] ?? $member->status;
 
         if (!$member->save()) {
             return $this->asJson([
