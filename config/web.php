@@ -19,6 +19,16 @@ $config = [
         'cache' => [
             'class' => 'yii\caching\FileCache',
         ],
+        'corsFilter' => [
+            'class' => \yii\filters\Cors::class,
+            'cors' => [
+                'Origin' => ['*'],
+                'Access-Control-Allow-Origin' => ['*'],
+                'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
+                'Access-Control-Request-Headers' => ['*'],
+                'Access-Control-Allow-Credentials' => true,
+            ],
+        ],
         'user' => [
             'identityClass' => 'app\models\User',
             'enableAutoLogin' => true,
