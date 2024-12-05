@@ -22,12 +22,29 @@ $config = [
         'corsFilter' => [
             'class' => \yii\filters\Cors::class,
             'cors' => [
-                'Origin' => ['*'],
-                'Access-Control-Allow-Origin' => ['*'],
+                'Origin' => ['https://redjuniors.mooo.com'],
+                'Access-Control-Allow-Origin' => ['https://redjuniors.mooo.com'],
                 'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
                 'Access-Control-Request-Headers' => ['*'],
                 'Access-Control-Allow-Credentials' => true,
             ],
+        ],
+        'response' => [
+        'class' => 'yii\web\Response',
+        'on beforeSend' => function ($event) {
+            $response = $event->sender;
+            $response->headers->set('Access-Control-Allow-Origin', 'https://redjuniors.mooo.com');
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, X-CSRF-Token');
+            $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            
+            // Handle OPTIONS request
+            if (Yii::$app->request->method === 'OPTIONS') {
+                $response->statusCode = 200;
+                $response->data = '';
+                return;
+            }
+            },
         ],
         'user' => [
             'identityClass' => 'app\models\User',
