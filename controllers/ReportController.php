@@ -7,7 +7,7 @@ use app\models\Donation;
 use app\models\ExpensesRecord;
 use app\models\Member;
 
-class ReportController extends BaseApiController
+class ReportController extends BaseAuthController
 {
     public function actionDashboard()
     {

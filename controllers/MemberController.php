@@ -3,6 +3,7 @@
 namespace app\controllers;
 
 use app\models\Member;
+use DateTime;
 use Yii;
 use yii\web\Controller;
 
@@ -39,7 +40,16 @@ class MemberController extends BaseApiController
 
     public function actionView($id)
     {
-        $member = Member::findOne($id);
+        // Check if the search parameter is numeric (likely an ID) or a string (likely a member_id)
+        $query = Member::find()->with('donations');
+        if (is_numeric($id)) {
+            $query->where(['id' => $id]);
+        } else {
+            $query->where(['member_id' => $id]);
+        }
+        
+        $member = $query->one();
+
         if ($member === null) {
             return $this->asJson([
                 'status' => 'error',
@@ -49,7 +59,10 @@ class MemberController extends BaseApiController
 
         return $this->asJson([
             'status' => 'ok',
-            'data' => $member,
+            'data' => [
+                'member' => $member,
+                'donations' => $member->donations,
+            ],
         ]);
     }
 
@@ -66,7 +79,13 @@ class MemberController extends BaseApiController
         $number = str_pad(($totalMembers % 1000) + 1, 4, '0', STR_PAD_LEFT);
         $member->member_id = $group . '-' . $number;
 
-        $member->birth_date = $data['birth_date'] ?? null;
+        // Convert birth_date to 'd M Y' format
+        if (isset($data['birth_date'])) {
+            $date = DateTime::createFromFormat('Y-m-d', $data['birth_date']);
+            $member->birth_date = $date ? $date->format('d M Y') : null;
+        } else {
+            $member->birth_date = null;
+        }
         $member->blood_bank_card = $data['blood_bank_card'] ?? null;
         $member->blood_type = $data['blood_type'] ?? null;
         $member->father_name = $data['father_name'] ?? null;
@@ -80,7 +99,7 @@ class MemberController extends BaseApiController
         $member->register_date = date('Y-m-d H:i:s');
         $member->total_count = "0";
         $member->status = 'available';
-        $member->last_date = '-';
+        $member->last_date = null;
         $member->owner_id = "1";
 
         if (!$member->save()) {
@@ -111,7 +130,11 @@ class MemberController extends BaseApiController
         $rawBody = $request->getRawBody();
         $data = json_decode($rawBody, true);
         
-        $member->birth_date = $data['birth_date'] ?? $member->birth_date;
+        // Convert birth_date to 'd M Y' format
+        if (isset($data['birth_date'])) {
+            $date = DateTime::createFromFormat('Y-m-d', $data['birth_date']);
+            $member->birth_date = $date ? $date->format('d M Y') : $member->birth_date;
+        }
         $member->blood_bank_card = $data['blood_bank_card'] ?? $member->blood_bank_card;
         $member->blood_type = $data['blood_type'] ?? $member->blood_type;
         $member->father_name = $data['father_name'] ?? $member->father_name;

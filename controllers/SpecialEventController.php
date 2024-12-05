@@ -6,7 +6,7 @@ use app\models\SpecialEvent;
 use Yii;
 use yii\web\Controller;
 
-class SpecialEventController extends BaseAuthController
+class SpecialEventController extends BaseApiController
 {
     public function actionIndex($page, $limit, $q = '')
     {
@@ -14,11 +14,16 @@ class SpecialEventController extends BaseAuthController
         if ($q) {
             $query = $query->where(['like', 'lab_name', $q]);
         }
+        
+        // Get total count before applying pagination
+        $totalCount = $query->count();
+        
         $query = $query->offset($page * $limit)->limit($limit)->orderBy("id");
 
         return $this->asJson([
             'status' => 'ok',
             'data' => $query->all(),
+            'total' => $totalCount,
         ]);
     }
 

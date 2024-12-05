@@ -4,7 +4,6 @@ namespace app\controllers;
 
 use app\models\Donation;
 use Yii;
-use yii\web\Controller;
 
 class DonationController extends BaseApiController
 {
@@ -55,7 +54,11 @@ class DonationController extends BaseApiController
 
     public function actionView($id)
     {
-        $donation = Donation::findOne($id);
+        $donation = Donation::find()
+            ->with('member0')
+            ->where(['id' => $id])
+            ->asArray()
+            ->one();
         if ($donation === null) {
             return $this->asJson([
                 'status' => 'error',
