@@ -31,9 +31,32 @@ $config = [
         ],
         'response' => [
         'class' => 'yii\web\Response',
+        // 'on beforeSend' => function ($event) {
+        //     $response = $event->sender;
+        //     $response->headers->set('Access-Control-Allow-Origin', 'https://redjuniors.mooo.com');
+        //     $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+        //     $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, X-CSRF-Token');
+        //     $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            
+        //     // Handle OPTIONS request
+        //     if (Yii::$app->request->method === 'OPTIONS') {
+        //         $response->statusCode = 200;
+        //         $response->data = '';
+        //         return;
+        //     }
+        //     },
         'on beforeSend' => function ($event) {
             $response = $event->sender;
-            $response->headers->set('Access-Control-Allow-Origin', 'https://redjuniors.mooo.com');
+            $allowedOrigins = [
+                'http://localhost:5173',
+                'https://redjuniors.mooo.com'
+            ];
+            $origin = Yii::$app->request->headers->get('origin');
+            
+            if (in_array($origin, $allowedOrigins)) {
+                $response->headers->set('Access-Control-Allow-Origin', $origin);
+            }
+            
             $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
             $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, X-CSRF-Token');
             $response->headers->set('Access-Control-Allow-Credentials', 'true');
@@ -44,7 +67,7 @@ $config = [
                 $response->data = '';
                 return;
             }
-            },
+        },
         ],
         'user' => [
             'identityClass' => 'app\models\User',
