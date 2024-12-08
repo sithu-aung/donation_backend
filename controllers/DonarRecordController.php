@@ -111,6 +111,19 @@ class DonarRecordController extends BaseApiController
     {
         $year = Yii::$app->request->get('year', date('Y'));
         
+        // Get all unique years from both tables
+        $years = array_unique(array_merge(
+            DonarRecord::find()
+                ->select(['EXTRACT(YEAR FROM date) as year'])
+                ->distinct()
+                ->column(),
+            ExpensesRecord::find()
+                ->select(['EXTRACT(YEAR FROM date) as year'])
+                ->distinct()
+                ->column()
+        ));
+        rsort($years);
+
         // Get expenses
         $expenses = ExpensesRecord::find()
             ->select([
@@ -174,7 +187,8 @@ class DonarRecordController extends BaseApiController
 
         return $this->asJson([
             'status' => 'ok',
-            'data' => array_values($monthlyStats)
+            'data' => array_values($monthlyStats),
+            'years' => $years
         ]);
     }
 
