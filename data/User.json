@@ -7,9 +7,44 @@
     },
     {
         "name": "Ko Kyaw Myo Oo",
-        "email": "kyawmyou@gmail.com",
+        "email": "kyawmyou2016@gmail.com",
         "password": "password",
         "phone": "09958120396"        
+    },
+    {
+        "name": "Pann Nu Khaing",
+        "email": "pannnukhaing7@gmail.com",
+        "password": "password",
+        "phone": "09958120398"        
+    },
+    {
+        "name": "Finance",
+        "email": "finance@gmail.com",
+        "password": "password",
+        "phone": "09958120399"        
+    },
+    {
+        "name": "Member",
+        "email": "member@gmail.com",
+        "password": "password",
+        "phone": "09958120390"        
+    },
+    {
+        "name": "Naing Linn",
+        "email": "nainglinn.mp@gmail.com",
+        "password": "password",
+        "phone": "09958120391"        
+    },
+    {
+        "name": "Ko Nyi Nyi",
+        "email": "konyinyi.mlm1@gmail.com",
+        "password": "password",
+        "phone": "09958120392"        
+    },
+    {
+        "name": "Red Juniors",
+        "email": "redjuniors@gmail.com",
+        "password": "password",
+        "phone": "09958120393"        
     }
-
 ]
