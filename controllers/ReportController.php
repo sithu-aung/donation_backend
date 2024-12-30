@@ -201,7 +201,7 @@ class ReportController extends BaseAuthController
         $labData = SpecialEvent::find()
             ->select(['lab_name', 'COUNT(*) as quantity'])
             ->groupBy('lab_name')
-            ->orderBy(['lab_name' => SORT_ASC])
+            ->orderBy(['quantity' => SORT_DESC])
             ->asArray()
             ->all();
 
