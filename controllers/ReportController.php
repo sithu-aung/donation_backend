@@ -6,6 +6,7 @@ use app\models\DonarRecord;
 use app\models\Donation;
 use app\models\ExpensesRecord;
 use app\models\Member;
+use app\models\SpecialEvent;
 
 class ReportController extends BaseAuthController
 {
@@ -192,6 +193,29 @@ class ReportController extends BaseAuthController
         ]);
     }
 
+    public function actionByLabName()
+    {
+        // Get total count of special events
+        $totalEvents = SpecialEvent::find()->count();
+
+        $labData = SpecialEvent::find()
+            ->select(['lab_name', 'COUNT(*) as quantity'])
+            ->groupBy('lab_name')
+            ->orderBy(['lab_name' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        // Calculate percentage for each lab
+        foreach ($labData as &$lab) {
+            $lab['percentage'] = round(($lab['quantity'] / $totalEvents) * 100, 1);
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $labData,
+            'totalEvents' => $totalEvents,
+        ]);
+    }
 
     protected function getTotalMembers()
     {
