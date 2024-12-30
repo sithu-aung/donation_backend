@@ -7,7 +7,7 @@ use Yii;
 
 class DonationController extends BaseApiController
 {
-    public function actionIndex($page, $limit, $q = '', $order = 'desc', $disease = '', $hospital = '')
+    public function actionIndex($page, $limit, $q = '', $order = 'desc', $disease = '', $hospital = '', $year = '')
     {
         $query = Donation::find();
         
@@ -20,6 +20,9 @@ class DonationController extends BaseApiController
         }
         if ($hospital) {
             $query->andWhere(['hospital' => $hospital]);
+        }
+        if ($year) {
+            $query->andWhere(['YEAR(donation_date)' => $year]);
         }
         
         // Get total count after applying filters

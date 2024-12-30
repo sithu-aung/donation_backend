@@ -9,26 +9,42 @@ use yii\web\Controller;
 
 class MemberController extends BaseApiController
 {
-    public function actionIndex($page, $limit, $q = '', $blood_type = null, $status = null)
+    public function actionIndex($page, $limit, $q = '', $blood_type = null, $status = null, $birth_year = null)
     {
         $query = Member::find();
         
-        // Search by name
+        // Search by name, father_name, phone, blood_bank_card, or member_id
         if ($q) {
-            $query = $query->where(['like', 'name', $q]);
+            $query->andWhere(['or',
+                ['like', 'name', $q],
+                ['like', 'father_name', $q],
+                ['like', 'phone', $q],
+                ['like', 'blood_bank_card', $q],
+                ['like', 'member_id', $q],
+            ]);
         }
         
         // Filter by blood type
         if ($blood_type) {
-            $query = $query->andWhere(['blood_type' => $blood_type]);
+            $query->andWhere(['blood_type' => $blood_type]);
         }
         
         // Filter by status
         if ($status) {
-            $query = $query->andWhere(['status' => $status]);
+            $query->andWhere(['status' => $status]);
         }
         
-        $query = $query->offset($page * $limit)->limit($limit)->orderBy("id");
+        // Filter by birth year
+        if ($birth_year) {
+            $query->andWhere(['like', 'birth_date', $birth_year]);
+        }
+        
+        // Apply pagination and ordering
+        $query = $query->offset($page * $limit)
+                       ->limit($limit)
+                       ->orderBy("id");
+        
+        // Get the total count after applying filters
         $total = $query->count();
 
         return $this->asJson([
