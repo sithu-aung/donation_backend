@@ -22,7 +22,7 @@ class DonationController extends BaseApiController
             $query->andWhere(['hospital' => $hospital]);
         }
         if ($year) {
-            $query->andWhere(['YEAR(donation_date)' => $year]);
+            $query->andWhere(['like', 'donation_date', $year]);
         }
         
         // Get total count after applying filters
