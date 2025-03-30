@@ -24,7 +24,7 @@ class BaseApiController extends Controller
                 'class' => Cors::class,
                 'cors' => [
                     // restrict access to domains:
-                    'Origin' => [
+                    'Origin' => ['https://firebase.redjuniors.moo.com', 'http://16.176.19.197', 
                         'http://localhost:5173',
                         'http://localhost:5174',
                         'http://localhost:5175',

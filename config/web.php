@@ -13,11 +13,19 @@ $config = [
     ],
     'components' => [
         'request' => [
-            // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
+            // \!\!\! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => 'YdV9SRSCjrH10hGxGFRTL8HV-qJtfBf1',
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
+        ],
+        'i18n' => [
+            'translations' => [
+                'yii/bootstrap5*' => [
+                    'class' => 'yii\i18n\PhpMessageSource',
+                    'basePath' => '@app/messages',
+                ],
+            ],
         ],
         'corsFilter' => [
             'class' => \yii\filters\Cors::class,
@@ -31,30 +39,21 @@ $config = [
         ],
         'response' => [
         'class' => 'yii\web\Response',
-        // 'on beforeSend' => function ($event) {
-        //     $response = $event->sender;
-        //     $response->headers->set('Access-Control-Allow-Origin', 'https://redjuniors.mooo.com');
-        //     $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-        //     $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, X-CSRF-Token');
-        //     $response->headers->set('Access-Control-Allow-Credentials', 'true');
-            
-        //     // Handle OPTIONS request
-        //     if (Yii::$app->request->method === 'OPTIONS') {
-        //         $response->statusCode = 200;
-        //         $response->data = '';
-        //         return;
-        //     }
-        //     },
         'on beforeSend' => function ($event) {
             $response = $event->sender;
             $allowedOrigins = [
                 'http://localhost:5173',
-                'https://redjuniors.mooo.com'
+                'https://redjuniors.mooo.com',
+                'https://firebase.redjuniors.moo.com',
+                'http://16.176.19.197',
+                'http://localhost:49707'
             ];
             $origin = Yii::$app->request->headers->get('origin');
             
             if (in_array($origin, $allowedOrigins)) {
                 $response->headers->set('Access-Control-Allow-Origin', $origin);
+            } else {
+                $response->headers->set('Access-Control-Allow-Origin', '*');
             }
             
             $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
@@ -95,7 +94,11 @@ $config = [
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
-            'rules' => [],
+            'rules' => [
+                '<controller:\\w+>/<action:\\w+>' => '<controller>/<action>',
+                '<controller:\\w+>/<action:\\w+>/<id:\\d+>' => '<controller>/<action>',
+                'api/<controller:\\w+>/<action:\\w+>' => '<controller>/<action>',
+            ],
         ],
     ],
     'params' => $params,
