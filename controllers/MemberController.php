@@ -203,4 +203,31 @@ class MemberController extends BaseApiController
             'message' => 'Member is deleted.'
         ]);
     }
+
+    public function actionCheckExists($name, $father_name = null, $blood_type = null)
+    {
+        $query = Member::find();
+
+        // Add name condition (required)
+        $query->andWhere(['like', 'name', $name]);
+
+        // Add father_name condition if provided
+        if ($father_name) {
+            $query->andWhere(['like', 'father_name', $father_name]);
+        }
+
+        // Add blood_type condition if provided
+        if ($blood_type) {
+            $query->andWhere(['blood_type' => $blood_type]);
+        }
+
+        // Find matching members
+        $members = $query->all();
+
+        return $this->asJson([
+            'status' => 'ok',
+            'exists' => count($members) > 0,
+            'members' => $members,
+        ]);
+    }
 }
