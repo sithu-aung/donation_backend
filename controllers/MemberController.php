@@ -12,7 +12,7 @@ class MemberController extends BaseApiController
     public function actionIndex($page, $limit, $q = '', $blood_type = null, $status = null, $birth_year = null)
     {
         $query = Member::find();
-        
+
         // Search by name, father_name, phone, blood_bank_card, or member_id
         if ($q) {
             $query->andWhere(['or',
@@ -23,35 +23,34 @@ class MemberController extends BaseApiController
                 ['like', 'member_id', $q],
             ]);
         }
-        
+
         // Filter by blood type
         if ($blood_type) {
             $query->andWhere(['blood_type' => $blood_type]);
         }
-        
+
         // Filter by status
         if ($status) {
             $query->andWhere(['status' => $status]);
         }
-        
+
         // Filter by birth year
         if ($birth_year) {
             $query->andWhere(['like', 'birth_date', $birth_year]);
         }
-        
+
         // Apply pagination and ordering
         $query = $query->offset($page * $limit)
                        ->limit($limit)
                        ->orderBy("id");
-        
+
         // Get the total count after applying filters
         $total = $query->count();
 
         return $this->asJson([
-            'success' => true,
-            'message' => 'Members retrieved successfully',
+            'status' => 'ok',
             'data' => $query->all(),
-            'meta' => ['total' => $total],
+            'total' => $total,
         ]);
     }
 
@@ -59,25 +58,25 @@ class MemberController extends BaseApiController
     {
         // Check if the search parameter is numeric (likely an ID) or a string (likely a member_id)
         $query = Member::find()->with('donations');
-        if (is_numeric($id)) {
-            $query->where(['id' => $id]);
-        } else {
-            $query->where(['member_id' => $id]);
-        }
-        
+        // if (is_numeric($id)) {
+        //     $query->where(['id' => $id]);
+        // } else {
+        //     $query->where(['member_id' => $id]);
+        // }
+        $query->where(['id' => $id]);
+
         $member = $query->one();
 
         if ($member === null) {
             return $this->asJson([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'No Member Found.',
-                'data' => null
+                'id' => $id
             ]);
         }
 
         return $this->asJson([
-            'success' => true,
-            'message' => 'Member retrieved successfully',
+            'status' => 'ok',
             'data' => [
                 'member' => $member,
                 'donations' => $member->donations,
@@ -91,7 +90,7 @@ class MemberController extends BaseApiController
         $request = Yii::$app->request;
         $rawBody = $request->getRawBody();
         $data = json_decode($rawBody, true);
-        
+
         // Generate member_id
         $totalMembers = Member::find()->count();
         $group = chr(65 + intval($totalMembers / 1000)); // Convert to letter A, B, C, etc.
@@ -123,16 +122,14 @@ class MemberController extends BaseApiController
 
         if (!$member->save()) {
             return $this->asJson([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to create Member.',
                 'errors' => $member->errors,
-                'data' => null
             ]);
         }
 
         return $this->asJson([
-            'success' => true,
-            'message' => 'Member created successfully',
+            'status' => 'ok',
             'data' => $member
         ]);
     }
@@ -142,16 +139,15 @@ class MemberController extends BaseApiController
         $member = Member::findOne($id);
         if ($member === null) {
             return $this->asJson([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'No Member Found.',
-                'data' => null
             ]);
         }
 
         $request = Yii::$app->request;
         $rawBody = $request->getRawBody();
         $data = json_decode($rawBody, true);
-        
+
         // Convert birth_date to 'd M Y' format
         if (isset($data['birth_date'])) {
             $date = DateTime::createFromFormat('Y-m-d', $data['birth_date']);
@@ -174,16 +170,14 @@ class MemberController extends BaseApiController
 
         if (!$member->save()) {
             return $this->asJson([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to update Member.',
                 'errors' => $member->errors,
-                'data' => null
             ]);
         }
 
         return $this->asJson([
-            'success' => true,
-            'message' => 'Member updated successfully',
+            'status' => 'ok',
             'data' => $member
         ]);
     }
@@ -193,23 +187,20 @@ class MemberController extends BaseApiController
         $member = Member::findOne($id);
         if ($member === null) {
             return $this->asJson([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'No Member Found.',
-                'data' => null
             ]);
         }
         if (!$member->delete()) {
             return $this->asJson([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to delete Member.',
-                'data' => null
             ]);
         }
 
         return $this->asJson([
-            'success' => true,
-            'message' => 'Member is deleted.',
-            'data' => null
+            'status' => 'ok',
+            'message' => 'Member is deleted.'
         ]);
     }
 }

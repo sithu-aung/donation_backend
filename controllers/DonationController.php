@@ -9,8 +9,11 @@ class DonationController extends BaseApiController
 {
     public function actionIndex($page, $limit, $q = '', $order = 'desc', $disease = '', $hospital = '', $year = '')
     {
-        $query = Donation::find();
-        
+        $query = Donation::find()
+            ->with(['member0' => function($query) {
+                $query->select(['id', 'name', 'blood_type', 'phone', 'address', 'nrc', 'father_name','blood_bank_card','birth_date','member_id']);
+            }]);
+
         // Apply filters
         if ($q) {
             $query->andWhere(['like', 'patient_name', $q]);
@@ -24,10 +27,10 @@ class DonationController extends BaseApiController
         if ($year) {
             $query->andWhere("date_part('year', donation_date) = :year", [':year' => $year]);
         }
-        
+
         // Get total count after applying filters
         $count = $query->count();
-        
+
         $hospitals = Donation::find()
             ->select('hospital')
             ->distinct()
@@ -46,12 +49,98 @@ class DonationController extends BaseApiController
             ->limit($limit)
             ->orderBy(['id' => $direction]);
 
+        // Get donation data with related member information
+        $donations = $query->asArray()->all();
+
+        // Map member data to memberObj for frontend compatibility
+        foreach ($donations as &$donation) {
+            if (isset($donation['member0'])) {
+                $donation['memberObj'] = $donation['member0'];
+            }
+        }
+
         return $this->asJson([
             'status' => 'ok',
-            'data' => $query->all(),
+            'data' => $donations,
             'total' => $count,
             'hospitals' => $hospitals,
             'diseases' => $diseases,
+            'page' => $page,
+            'limit' => $limit,
+            'hasMore' => ($page * $limit + $limit) < $count,
+        ]);
+    }
+
+    public function actionByMonthYear($month, $year, $page = 0, $limit = 500)
+    {
+        $query = Donation::find()
+            ->with(['member0' => function($query) {
+                $query->select(['id', 'name', 'blood_type', 'phone', 'address', 'nrc', 'father_name','blood_bank_card','birth_date','member_id']);
+            }])
+            ->where("date_part('month', donation_date) = :month", [':month' => $month])
+            ->andWhere("date_part('year', donation_date) = :year", [':year' => $year]);
+
+        // Get total count
+        $count = $query->count();
+
+        // Apply pagination
+        $query = $query->offset($page * $limit)
+            ->limit($limit)
+            ->orderBy(['donation_date' => SORT_DESC]);
+
+        // Get donation data with related member information
+        $donations = $query->asArray()->all();
+
+        // Map member data to memberObj for frontend compatibility
+        foreach ($donations as &$donation) {
+            if (isset($donation['member0'])) {
+                $donation['memberObj'] = $donation['member0'];
+            }
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $donations,
+            'total' => $count,
+            'page' => $page,
+            'limit' => $limit,
+            'hasMore' => ($page * $limit + $limit) < $count,
+        ]);
+    }
+
+    public function actionByYear($year, $page = 0, $limit = 500)
+    {
+        $query = Donation::find()
+            ->with(['member0' => function($query) {
+                $query->select(['id', 'name', 'blood_type', 'phone', 'address', 'nrc', 'father_name','blood_bank_card','birth_date','member_id']);
+            }])
+            ->where("date_part('year', donation_date) = :year", [':year' => $year]);
+
+        // Get total count
+        $count = $query->count();
+
+        // Apply pagination
+        $query = $query->offset($page * $limit)
+            ->limit($limit)
+            ->orderBy(['donation_date' => SORT_DESC]);
+
+        // Get donation data with related member information
+        $donations = $query->asArray()->all();
+
+        // Map member data to memberObj for frontend compatibility
+        foreach ($donations as &$donation) {
+            if (isset($donation['member0'])) {
+                $donation['memberObj'] = $donation['member0'];
+            }
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $donations,
+            'total' => $count,
+            'page' => $page,
+            'limit' => $limit,
+            'hasMore' => ($page * $limit + $limit) < $count,
         ]);
     }
 

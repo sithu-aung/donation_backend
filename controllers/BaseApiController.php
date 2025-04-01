@@ -23,21 +23,24 @@ class BaseApiController extends Controller
             'corsFilter' => [
                 'class' => Cors::class,
                 'cors' => [
-                    // restrict access to domains:
-                    'Origin' => ['https://firebase.redjuniors.moo.com', 'http://16.176.19.197', 
-                        'http://localhost:5173',
-                        'http://localhost:5174',
-                        'http://localhost:5175',
-                        'http://170.64.231.139',
-                        'https://todolist.mooo.com',
-                        'http://localhost:49707'
-                    ],
-                    'Access-Control-Request-Method' => ['POST', 'GET', 'OPTIONS'],
+                    // allow all origins
+                    'Origin' => ['*'],
+                    'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
+                    'Access-Control-Request-Headers' => ['*'],
                     'Access-Control-Allow-Credentials' => true,
-                    'Access-Control-Request-Headers' => ['Access-Control-Allow-Headers', 'Origin', 'X-Api-Key', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'X-Custom-Header'],
-                    'Access-Control-Allow-Headers' => ['Access-Control-Allow-Headers', 'Origin', 'X-Api-Key', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'X-Custom-Header'],
+                    'Access-Control-Max-Age' => 3600, // Cache preflight for 1 hour
+                    'Access-Control-Expose-Headers' => ['X-Pagination-Current-Page', 'X-Pagination-Page-Count', 'X-Pagination-Per-Page', 'X-Pagination-Total-Count'],
                 ],
             ],
         ];
+    }
+    
+    /**
+     * Handle OPTIONS requests for CORS preflight
+     */
+    public function actionOptions()
+    {
+        \Yii::$app->response->statusCode = 200;
+        return;
     }
 }

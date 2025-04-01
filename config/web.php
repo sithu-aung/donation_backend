@@ -15,23 +15,6 @@ $config = [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => 'c4MoHsu2EQ3B1ZwZBZDUExK9ijghSVau',
-            'parsers' => [
-                'application/json' => 'yii\web\JsonParser',
-            ],
-        ],
-        'response' => [
-            'format' => yii\web\Response::FORMAT_JSON,
-            'charset' => 'UTF-8',
-        ],
-        'cors' => [
-            'class' => \yii\filters\Cors::class,
-            'cors' => [
-                'Origin' => ['*'],
-                'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
-                'Access-Control-Request-Headers' => ['*'],
-                'Access-Control-Allow-Credentials' => true,
-                'Access-Control-Max-Age' => 86400,
-            ],
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -63,26 +46,7 @@ $config = [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
-                [
-                    'class' => 'yii\rest\UrlRule',
-                    'controller' => ['api/report'],
-                    'pluralize' => false,
-                    'patterns' => [
-                        'GET dashboard' => 'dashboard',
-                        'GET by-disease' => 'by-disease',
-                        'GET by-gender' => 'by-gender',
-                        'GET by-blood-type' => 'by-blood-type',
-                        'GET by-hospital' => 'by-hospital',
-                        'GET by-lab-name' => 'by-lab-name',
-                    ],
-                ],
             ],
-        ],
-    ],
-    'modules' => [
-        'api' => [
-            'class' => 'app\modules\api\Module',
-            'basePath' => '@app/modules/api',
         ],
     ],
     'params' => $params,

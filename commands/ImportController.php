@@ -11,12 +11,16 @@ use app\models\ExpensesRecord;
 use app\models\RequestGive;
 use Yii;
 use yii\console\Controller;
+use yii\console\Console;
+use yii\console\ExitCode;
+use yii\helpers\Console as HelpersConsole;
 use yii\helpers\Json;
 
 class ImportController extends Controller
 {
     public function actionAll()
     {
+        ini_set('memory_limit', '1024M');
         $transaction = Yii::$app->db->beginTransaction();
         try {
             $this->seedAccounts();
@@ -31,6 +35,35 @@ class ImportController extends Controller
             $transaction->rollBack();
             Yii::error("Error in ImportController: " . $e->getMessage(), __METHOD__);
             throw $e;
+        }
+    }
+
+    public function actionClearAll() {
+        try {
+            $tables = ['member', 'donation', 'special_event', 'donar_record', 'expenses_record', 'request_give', 'account'];
+            $tablesList = implode(', ', $tables);
+
+            Yii::$app->db->createCommand("TRUNCATE TABLE $tablesList CASCADE")->execute();
+
+            $sequences = [
+                'member_id_seq',
+                'donation_id_seq',
+                'special_event_id_seq',
+                'donar_record_id_seq',
+                'expenses_record_id_seq',
+                'request_give_id_seq',
+                'account_id_seq'
+            ];
+
+            foreach ($sequences as $sequence) {
+                Yii::$app->db->createCommand("ALTER SEQUENCE $sequence RESTART WITH 1")->execute();
+            }
+
+            $this->stdout("All tables have been cleared successfully.\n", HelpersConsole::FG_GREEN);
+            return ExitCode::OK;
+        } catch (\Exception $e) {
+            $this->stderr("Error clearing data: " . $e->getMessage() . "\n", HelpersConsole::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
         }
     }
 
@@ -90,7 +123,7 @@ class ImportController extends Controller
             $donation->member_id = $item['memberId'] ?? null;
             $member = Member::findOne(['member_id' => $item['memberId']]);
             $donation->member = $member->id;
-            
+
             if ($donation->member === null) {
                 echo "Member not found for memberId: " . $item['memberId'] . "\n";
                 continue; // Skip this record
@@ -116,12 +149,12 @@ class ImportController extends Controller
             $event = new SpecialEvent();
             $event->date = $item['date'] ?? null;
             $event->haemoglobin = $item['haemoglobin'] ?? null;
-            $event->hbs_ag = $item['hbsAg'] ?? null; 
-            $event->hcv_ab = $item['hcvAb'] ?? null; 
-            $event->mp_ict = $item['mpIct'] ?? null; 
-            $event->retro_test = $item['retroTest'] ?? null; 
-            $event->vdrl_test = $item['vdrlTest'] ?? null; 
-            $event->lab_name = $item['labName'] ?? null; 
+            $event->hbs_ag = $item['hbsAg'] ?? null;
+            $event->hcv_ab = $item['hcvAb'] ?? null;
+            $event->mp_ict = $item['mpIct'] ?? null;
+            $event->retro_test = $item['retroTest'] ?? null;
+            $event->vdrl_test = $item['vdrlTest'] ?? null;
+            $event->lab_name = $item['labName'] ?? null;
             $event->total = $item['total'] ?? null;
             $event->save();
         }
