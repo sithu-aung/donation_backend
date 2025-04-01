@@ -21,7 +21,8 @@ class ReportController extends BaseAuthController
 
         // Return the data as JSON
         return $this->asJson([
-            'status' => 'ok',
+            'success' => true,
+            'message' => 'Dashboard data retrieved successfully',
             'data' => [
                 'totalMember' => $totalMember,
                 'totalDonations' => $totalDonations,
@@ -49,9 +50,12 @@ class ReportController extends BaseAuthController
         }
 
         return $this->asJson([
-            'status' => 'ok',
-            'data' => $diseaseData,
-            'totalDonations' => $totalDonations,
+            'success' => true,
+            'message' => 'Disease data retrieved successfully',
+            'data' => [
+                'diseaseData' => $diseaseData,
+                'totalDonations' => $totalDonations,
+            ],
         ]);
     }
 
@@ -136,12 +140,15 @@ class ReportController extends BaseAuthController
         }
 
         return $this->asJson([
-            'status' => 'ok',
-            'data' => $genderData,
-            'averageAge' => $averageAge,
-            'ageRanges' => $ageRanges,
-            'totalDonations' => $totalDonations,
-            'totalMembers' => $this->getTotalMembers(),
+            'success' => true,
+            'message' => 'Gender and age data retrieved successfully',
+            'data' => [
+                'genderData' => $genderData,
+                'averageAge' => $averageAge,
+                'ageRanges' => $ageRanges,
+                'totalDonations' => $totalDonations,
+                'totalMembers' => $this->getTotalMembers(),
+            ],
         ]);
     }
 
@@ -163,9 +170,12 @@ class ReportController extends BaseAuthController
         }
 
         return $this->asJson([
-            'status' => 'ok',
-            'data' => $bloodTypeData,
-            'totalDonations' => $totalDonations,
+            'success' => true,
+            'message' => 'Blood type data retrieved successfully',
+            'data' => [
+                'bloodTypeData' => $bloodTypeData,
+                'totalDonations' => $totalDonations,
+            ],
         ]);
     }
 
@@ -186,10 +196,12 @@ class ReportController extends BaseAuthController
         }
 
         return $this->asJson([
-            'status' => 'ok',
-            'data' => $hospitalData,
-            'totalDonations' => $totalDonations,
-
+            'success' => true,
+            'message' => 'Hospital data retrieved successfully',
+            'data' => [
+                'hospitalData' => $hospitalData,
+                'totalDonations' => $totalDonations,
+            ],
         ]);
     }
 
@@ -211,9 +223,12 @@ class ReportController extends BaseAuthController
         }
 
         return $this->asJson([
-            'status' => 'ok',
-            'data' => $labData,
-            'totalEvents' => $totalEvents,
+            'success' => true,
+            'message' => 'Lab data retrieved successfully',
+            'data' => [
+                'labData' => $labData,
+                'totalEvents' => $totalEvents,
+            ],
         ]);
     }
 
