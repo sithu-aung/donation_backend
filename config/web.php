@@ -98,6 +98,8 @@ $config = [
                 '<controller:\\w+>/<action:\\w+>' => '<controller>/<action>',
                 '<controller:\\w+>/<action:\\w+>/<id:\\d+>' => '<controller>/<action>',
                 'api/<controller:\\w+>/<action:\\w+>' => '<controller>/<action>',
+                'members/<action:\\w+>' => 'member/<action>',
+                'members/all' => 'member/index',
             ],
         ],
     ],
