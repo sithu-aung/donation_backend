@@ -48,9 +48,10 @@ class MemberController extends BaseApiController
         $total = $query->count();
 
         return $this->asJson([
-            'status' => 'ok',
+            'success' => true,
+            'message' => 'Members retrieved successfully',
             'data' => $query->all(),
-            'total' => $total,
+            'meta' => ['total' => $total],
         ]);
     }
 
@@ -68,13 +69,15 @@ class MemberController extends BaseApiController
 
         if ($member === null) {
             return $this->asJson([
-                'status' => 'error',
+                'success' => false,
                 'message' => 'No Member Found.',
+                'data' => null
             ]);
         }
 
         return $this->asJson([
-            'status' => 'ok',
+            'success' => true,
+            'message' => 'Member retrieved successfully',
             'data' => [
                 'member' => $member,
                 'donations' => $member->donations,
@@ -120,14 +123,16 @@ class MemberController extends BaseApiController
 
         if (!$member->save()) {
             return $this->asJson([
-                'status' => 'error',
+                'success' => false,
                 'message' => 'Failed to create Member.',
                 'errors' => $member->errors,
+                'data' => null
             ]);
         }
 
         return $this->asJson([
-            'status' => 'ok',
+            'success' => true,
+            'message' => 'Member created successfully',
             'data' => $member
         ]);
     }
@@ -137,8 +142,9 @@ class MemberController extends BaseApiController
         $member = Member::findOne($id);
         if ($member === null) {
             return $this->asJson([
-                'status' => 'error',
+                'success' => false,
                 'message' => 'No Member Found.',
+                'data' => null
             ]);
         }
 
@@ -168,14 +174,16 @@ class MemberController extends BaseApiController
 
         if (!$member->save()) {
             return $this->asJson([
-                'status' => 'error',
+                'success' => false,
                 'message' => 'Failed to update Member.',
                 'errors' => $member->errors,
+                'data' => null
             ]);
         }
 
         return $this->asJson([
-            'status' => 'ok',
+            'success' => true,
+            'message' => 'Member updated successfully',
             'data' => $member
         ]);
     }
@@ -185,20 +193,23 @@ class MemberController extends BaseApiController
         $member = Member::findOne($id);
         if ($member === null) {
             return $this->asJson([
-                'status' => 'error',
+                'success' => false,
                 'message' => 'No Member Found.',
+                'data' => null
             ]);
         }
         if (!$member->delete()) {
             return $this->asJson([
-                'status' => 'error',
+                'success' => false,
                 'message' => 'Failed to delete Member.',
+                'data' => null
             ]);
         }
 
         return $this->asJson([
-            'status' => 'ok',
-            'message' => 'Member is deleted.'
+            'success' => true,
+            'message' => 'Member is deleted.',
+            'data' => null
         ]);
     }
 }
