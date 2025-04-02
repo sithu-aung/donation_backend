@@ -15,35 +15,6 @@ $config = [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => 'c4MoHsu2EQ3B1ZwZBZDUExK9ijghSVau',
-            'parsers' => [
-                'application/json' => 'yii\web\JsonParser',
-            ],
-        ],
-        'i18n' => [
-            'translations' => [
-                'yii/bootstrap5*' => [
-                    'class' => 'yii\i18n\PhpMessageSource',
-                    'basePath' => '@app/messages',
-                ],
-                '*' => [
-                    'class' => 'yii\i18n\PhpMessageSource',
-                    'basePath' => '@app/messages',
-                ],
-            ],
-        ],
-        'response' => [
-            'format' => yii\web\Response::FORMAT_JSON,
-            'charset' => 'UTF-8',
-        ],
-        'cors' => [
-            'class' => \yii\filters\Cors::class,
-            'cors' => [
-                'Origin' => ['*'],
-                'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
-                'Access-Control-Request-Headers' => ['*'],
-                'Access-Control-Allow-Credentials' => true,
-                'Access-Control-Max-Age' => 86400,
-            ],
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -75,19 +46,6 @@ $config = [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
-                ['class' => 'yii\rest\UrlRule', 'controller' => 'auth'],
-                ['class' => 'yii\rest\UrlRule', 'controller' => 'report'],
-                [
-                    'pattern' => 'auth/<action>',
-                    'route' => 'auth/<action>',
-                    'verb' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-                ],
-                [
-                    'pattern' => 'report/<action>',
-                    'route' => 'report/<action>',
-                    'verb' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-                ],
-                '<controller:\w+>/<action:\w+>' => '<controller>/<action>',
             ],
         ],
     ],
