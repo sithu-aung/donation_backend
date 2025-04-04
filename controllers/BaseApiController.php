@@ -23,8 +23,8 @@ class BaseApiController extends Controller
             'corsFilter' => [
                 'class' => Cors::class,
                 'cors' => [
-                    // allow all origins
-                    'Origin' => ['*'],
+                    // Allow both localhost and production domains
+                    'Origin' => ['http://localhost:*', 'http://127.0.0.1:*', 'https://redjuniors.mooo.com', 'http://redjuniors.mooo.com'],
                     'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
                     'Access-Control-Request-Headers' => ['*'],
                     'Access-Control-Allow-Credentials' => true,
