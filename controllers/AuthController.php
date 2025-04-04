@@ -11,7 +11,6 @@ class AuthController extends BaseApiController
 
     public function actionLogin()
     {
-
         $request = Yii::$app->request;
         $rawBody = $request->getRawBody();
         $data = json_decode($rawBody, true);
@@ -53,5 +52,11 @@ class AuthController extends BaseApiController
             'status' => 'ok',
             'data' => $account
         ];
+    }
+
+    public function actionMemberLogin()
+    {
+        // Delegate to the regular login action since the functionality is the same
+        return $this->actionLogin();
     }
 }
