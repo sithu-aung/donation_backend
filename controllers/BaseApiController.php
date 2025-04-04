@@ -24,7 +24,7 @@ class BaseApiController extends Controller
                 'class' => Cors::class,
                 'cors' => [
                     // Allow all origins
-                    'Origin' => ['https://redjuniors-b81b4.web.app'],
+                    'Origin' => ['https://redjuniors-b81b4.web.app','https://donation-coral-five.vercel.app'],
                     'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
                     'Access-Control-Request-Headers' => ['*'],
                     'Access-Control-Allow-Credentials' => true,
