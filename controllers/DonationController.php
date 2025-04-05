@@ -86,7 +86,7 @@ class DonationController extends BaseApiController
         // Apply pagination
         $query = $query->offset($page * $limit)
             ->limit($limit)
-            ->orderBy(['donation_date' => SORT_DESC]);
+            ->orderBy(['donation_date' => SORT_ASC]);
 
         // Get donation data with related member information
         $donations = $query->asArray()->all();
