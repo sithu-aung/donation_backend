@@ -168,7 +168,20 @@ class DonationController extends BaseApiController
     {
         $donation = new Donation();
         $donation->date = Yii::$app->request->post('date');
-        $donation->donation_date = Yii::$app->request->post('donation_date');
+
+        // Handle donation_date without timezone conversion
+        $donationDate = Yii::$app->request->post('donation_date');
+        if ($donationDate) {
+            // Store the datetime exactly as provided from the client
+            $dateObj = new \DateTime($donationDate);
+            $donation->donation_date = $dateObj->format('Y-m-d H:i:s');
+
+            // Debug logging in development
+            Yii::debug("Original date preserved: {$donationDate}, Stored as: {$donation->donation_date}");
+        } else {
+            $donation->donation_date = null;
+        }
+
         $donation->hospital = Yii::$app->request->post('hospital');
         $donation->member_id = Yii::$app->request->post('member_id');
         $donation->member = Yii::$app->request->post('member');
@@ -203,7 +216,20 @@ class DonationController extends BaseApiController
         }
 
         $donation->date = Yii::$app->request->post('date');
-        $donation->donation_date = Yii::$app->request->post('donation_date');
+
+        // Handle donation_date without timezone conversion
+        $donationDate = Yii::$app->request->post('donation_date');
+        if ($donationDate) {
+            // Store the datetime exactly as provided from the client
+            $dateObj = new \DateTime($donationDate);
+            $donation->donation_date = $dateObj->format('Y-m-d H:i:s');
+
+            // Debug logging in development
+            Yii::debug("Original date preserved: {$donationDate}, Stored as: {$donation->donation_date}");
+        } else {
+            $donation->donation_date = null;
+        }
+
         $donation->hospital = Yii::$app->request->post('hospital');
         $donation->member_id = Yii::$app->request->post('member_id');
         $donation->member = Yii::$app->request->post('member');

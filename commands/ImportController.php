@@ -118,7 +118,24 @@ class ImportController extends Controller
         foreach ($data as $item) {
             $donation = new Donation();
             $donation->date = $item['date'] ?? null;
-            $donation->donation_date = $item['donationDate'] ?? null;
+
+            // Fix donation_date timezone handling specifically for Myanmar timezone (UTC+6:30)
+            if (isset($item['donationDate']) && !empty($item['donationDate'])) {
+                // Parse the ISO 8601 date as UTC
+                $donationDate = new \DateTime($item['donationDate'], new \DateTimeZone('UTC'));
+
+                // Convert explicitly to Myanmar timezone (Asia/Yangon = UTC+6:30)
+                $donationDate->setTimezone(new \DateTimeZone('Asia/Yangon'));
+
+                // Format for database storage
+                $donation->donation_date = $donationDate->format('Y-m-d H:i:s');
+
+                // Debug logging
+                echo "Original date: {$item['donationDate']}, Converted to Myanmar time: {$donation->donation_date}\n";
+            } else {
+                $donation->donation_date = null;
+            }
+
             $donation->hospital = $item['hospital'] ?? null;
             $donation->member_id = $item['memberId'] ?? null;
             $member = Member::findOne(['member_id' => $item['memberId']]);
