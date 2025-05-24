@@ -220,15 +220,15 @@ class ReportController extends BaseAuthController
 
     public function actionByRequestGive()
     {
-        // Group request give data by month and year
+        // Group request give data by month and year using PostgreSQL-compatible functions
         $requestGiveData = RequestGive::find()
             ->select([
-                'YEAR(date) as year',
-                'MONTH(date) as month',
+                'EXTRACT(YEAR FROM date) as year',
+                'EXTRACT(MONTH FROM date) as month',
                 'SUM(request) as request',
                 'SUM(give) as give'
             ])
-            ->groupBy(['YEAR(date)', 'MONTH(date)'])
+            ->groupBy(['EXTRACT(YEAR FROM date)', 'EXTRACT(MONTH FROM date)'])
             ->orderBy(['year' => SORT_ASC, 'month' => SORT_ASC])
             ->asArray()
             ->all();
