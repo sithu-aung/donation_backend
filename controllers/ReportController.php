@@ -6,6 +6,7 @@ use app\models\DonarRecord;
 use app\models\Donation;
 use app\models\ExpensesRecord;
 use app\models\Member;
+use app\models\RequestGive;
 use app\models\SpecialEvent;
 
 class ReportController extends BaseAuthController
@@ -214,6 +215,38 @@ class ReportController extends BaseAuthController
             'status' => 'ok',
             'data' => $labData,
             'totalEvents' => $totalEvents,
+        ]);
+    }
+
+    public function actionByRequestGive()
+    {
+        // Group request give data by month and year
+        $requestGiveData = RequestGive::find()
+            ->select([
+                'YEAR(date) as year',
+                'MONTH(date) as month',
+                'SUM(request) as request',
+                'SUM(give) as give'
+            ])
+            ->groupBy(['YEAR(date)', 'MONTH(date)'])
+            ->orderBy(['year' => SORT_ASC, 'month' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        // Format the data for the chart
+        $chartData = [];
+        foreach ($requestGiveData as $data) {
+            $chartData[] = [
+                'year' => (int)$data['year'],
+                'month' => (int)$data['month'],
+                'request' => (int)$data['request'],
+                'give' => (int)$data['give'],
+            ];
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $chartData,
         ]);
     }
 
