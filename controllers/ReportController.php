@@ -33,20 +33,43 @@ class ReportController extends BaseAuthController
         ]);
     }
 
-    public function actionByDisease($limit = 8)
+    public function actionByDisease($limit = 8, $year = null, $month = null)
     {
-        $totalDonations = $this->getBloodDonations();
+        $query = Donation::find()
+            ->select(['patient_disease', 'COUNT(*) as quantity']);
 
-        $diseaseData = Donation::find()
-            ->select(['patient_disease', 'COUNT(*) as quantity'])
+        // Apply year and month filters if provided
+        if ($year !== null) {
+            $query->andWhere("EXTRACT(YEAR FROM donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $query->andWhere("EXTRACT(MONTH FROM donation_date) = :month", [':month' => $month]);
+        }
+
+        $diseaseData = $query
             ->groupBy('patient_disease')
             ->orderBy(['quantity' => SORT_DESC])
             ->limit($limit)
             ->asArray()
             ->all();
 
+        // Get total donations with same filters
+        $totalQuery = Donation::find();
+        if ($year !== null) {
+            $totalQuery->andWhere("EXTRACT(YEAR FROM donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $totalQuery->andWhere("EXTRACT(MONTH FROM donation_date) = :month", [':month' => $month]);
+        }
+        $totalDonations = $totalQuery->count();
+
+        // Map to Flutter expected format and calculate percentage
         foreach ($diseaseData as &$disease) {
-            $disease['percentage'] = round(($disease['quantity'] / $totalDonations) * 100);
+            $disease['name'] = $disease['patient_disease'] ?? '';
+            $disease['count'] = (int)$disease['quantity'];
+            $disease['percentage'] = $totalDonations > 0 ? round(($disease['quantity'] / $totalDonations) * 100, 1) : 0;
+            unset($disease['patient_disease']);
+            unset($disease['quantity']);
         }
 
         return $this->asJson([
@@ -56,16 +79,34 @@ class ReportController extends BaseAuthController
         ]);
     }
 
-    public function actionByGender()
+    public function actionByGender($year = null, $month = null)
     {
-        $totalDonations = $this->getBloodDonations();
-
-        $genderData = Donation::find()
+        $query = Donation::find()
             ->select(['member.gender as patient_gender', 'COUNT(*) as quantity'])
-            ->joinWith('member0')
+            ->joinWith('member0');
+
+        // Apply year and month filters if provided
+        if ($year !== null) {
+            $query->andWhere("EXTRACT(YEAR FROM donation.donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $query->andWhere("EXTRACT(MONTH FROM donation.donation_date) = :month", [':month' => $month]);
+        }
+
+        $genderData = $query
             ->groupBy('member.gender')
             ->asArray()
             ->all();
+
+        // Get total donations with same filters
+        $totalQuery = Donation::find();
+        if ($year !== null) {
+            $totalQuery->andWhere("EXTRACT(YEAR FROM donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $totalQuery->andWhere("EXTRACT(MONTH FROM donation_date) = :month", [':month' => $month]);
+        }
+        $totalDonations = $totalQuery->count();
 
         // Initialize variables to hold the counts
         $femaleCount = 0;
@@ -88,12 +129,12 @@ class ReportController extends BaseAuthController
             [
                 'patient_gender' => 'female',
                 'quantity' => $femaleCount,
-                'percentage' => round(($femaleCount / $totalDonations) * 100),
+                'percentage' => $totalDonations > 0 ? round(($femaleCount / $totalDonations) * 100) : 0,
             ],
             [
                 'patient_gender' => 'male',
                 'quantity' => $maleCount,
-                'percentage' => round(($maleCount / $totalDonations) * 100),
+                'percentage' => $totalDonations > 0 ? round(($maleCount / $totalDonations) * 100) : 0,
             ],
         ];
 
@@ -146,20 +187,38 @@ class ReportController extends BaseAuthController
         ]);
     }
 
-    public function actionByBloodType()
+    public function actionByBloodType($year = null, $month = null)
     {
-        $totalDonations = $this->getBloodDonations();
-
-        $bloodTypeData = Donation::find()
+        $query = Donation::find()
             ->select(['member.blood_type', 'COUNT(*) as quantity'])
-            ->joinWith('member0')
+            ->joinWith('member0');
+
+        // Apply year and month filters if provided
+        if ($year !== null) {
+            $query->andWhere("EXTRACT(YEAR FROM donation.donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $query->andWhere("EXTRACT(MONTH FROM donation.donation_date) = :month", [':month' => $month]);
+        }
+
+        $bloodTypeData = $query
             ->groupBy('member.blood_type')
             ->orderBy(['member.blood_type' => SORT_ASC])
             ->asArray()
             ->all();
 
+        // Get total donations with same filters
+        $totalQuery = Donation::find();
+        if ($year !== null) {
+            $totalQuery->andWhere("EXTRACT(YEAR FROM donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $totalQuery->andWhere("EXTRACT(MONTH FROM donation_date) = :month", [':month' => $month]);
+        }
+        $totalDonations = $totalQuery->count();
+
         foreach ($bloodTypeData as &$bloodType) {
-            $bloodType['percentage'] = round(($bloodType['quantity'] / $totalDonations) * 100, 1);
+            $bloodType['percentage'] = $totalDonations > 0 ? round(($bloodType['quantity'] / $totalDonations) * 100, 1) : 0;
             unset($bloodType['member0']);
         }
 
@@ -170,20 +229,38 @@ class ReportController extends BaseAuthController
         ]);
     }
 
-    public function actionByHospital($limit = 20)
+    public function actionByHospital($limit = 20, $year = null, $month = null)
     {
-        $totalDonations = $this->getBloodDonations();
+        $query = Donation::find()
+            ->select(['hospital', 'COUNT(*) as quantity']);
 
-        $hospitalData = Donation::find()
-            ->select(['hospital', 'COUNT(*) as quantity'])
+        // Apply year and month filters if provided
+        if ($year !== null) {
+            $query->andWhere("EXTRACT(YEAR FROM donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $query->andWhere("EXTRACT(MONTH FROM donation_date) = :month", [':month' => $month]);
+        }
+
+        $hospitalData = $query
             ->groupBy('hospital')
             ->orderBy(['quantity' => SORT_DESC])
             ->limit($limit)
             ->asArray()
             ->all();
 
+        // Get total donations with same filters
+        $totalQuery = Donation::find();
+        if ($year !== null) {
+            $totalQuery->andWhere("EXTRACT(YEAR FROM donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $totalQuery->andWhere("EXTRACT(MONTH FROM donation_date) = :month", [':month' => $month]);
+        }
+        $totalDonations = $totalQuery->count();
+
         foreach ($hospitalData as &$hospital) {
-            $hospital['percentage'] = round(($hospital['quantity'] / $totalDonations) * 100, 1);
+            $hospital['percentage'] = $totalDonations > 0 ? round(($hospital['quantity'] / $totalDonations) * 100, 1) : 0;
         }
 
         return $this->asJson([
