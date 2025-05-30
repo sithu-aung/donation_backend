@@ -327,6 +327,126 @@ class ReportController extends BaseAuthController
         ]);
     }
 
+    public function actionDonationSummary($year = null, $month = null)
+    {
+        // Build base query with date filters
+        $baseQuery = Donation::find();
+        if ($year !== null) {
+            $baseQuery->andWhere("EXTRACT(YEAR FROM donation_date) = :year", [':year' => $year]);
+        }
+        if ($month !== null) {
+            $baseQuery->andWhere("EXTRACT(MONTH FROM donation_date) = :month", [':month' => $month]);
+        }
+
+        // Get total donations count
+        $totalDonations = $baseQuery->count();
+
+        // Get disease data
+        $diseaseQuery = clone $baseQuery;
+        $diseaseData = $diseaseQuery
+            ->select(['patient_disease as name', 'COUNT(*) as count'])
+            ->groupBy('patient_disease')
+            ->orderBy(['count' => SORT_DESC])
+            ->limit(8)
+            ->asArray()
+            ->all();
+
+        // Clean disease data
+        foreach ($diseaseData as &$disease) {
+            $disease['name'] = $disease['name'] ?? '';
+            $disease['count'] = (int)$disease['count'];
+            $disease['percentage'] = $totalDonations > 0 ? round(($disease['count'] / $totalDonations) * 100, 1) : 0;
+        }
+
+        // Get blood type data
+        $bloodTypeQuery = clone $baseQuery;
+        $bloodTypeData = $bloodTypeQuery
+            ->select(['member.blood_type', 'COUNT(*) as quantity'])
+            ->joinWith('member0')
+            ->groupBy('member.blood_type')
+            ->orderBy(['member.blood_type' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        // Format blood type data
+        $bloodTypeMap = [];
+        foreach ($bloodTypeData as $bloodType) {
+            $bloodTypeMap[$bloodType['blood_type']] = [
+                'quantity' => (int)$bloodType['quantity'],
+                'percentage' => $totalDonations > 0 ? round(($bloodType['quantity'] / $totalDonations) * 100, 1) : 0
+            ];
+        }
+
+        // Get hospital data
+        $hospitalQuery = clone $baseQuery;
+        $hospitalData = $hospitalQuery
+            ->select(['hospital', 'COUNT(*) as quantity'])
+            ->groupBy('hospital')
+            ->orderBy(['quantity' => SORT_DESC])
+            ->limit(10)
+            ->asArray()
+            ->all();
+
+        // Format hospital data
+        $hospitalList = [];
+        foreach ($hospitalData as $hospital) {
+            $hospitalList[] = [
+                'hospital' => $hospital['hospital'] ?? '',
+                'quantity' => (int)$hospital['quantity'],
+                'percentage' => $totalDonations > 0 ? round(($hospital['quantity'] / $totalDonations) * 100, 1) : 0
+            ];
+        }
+
+        // Get gender data
+        $genderQuery = clone $baseQuery;
+        $genderData = $genderQuery
+            ->select(['member.gender as patient_gender', 'COUNT(*) as quantity'])
+            ->joinWith('member0')
+            ->groupBy('member.gender')
+            ->asArray()
+            ->all();
+
+        $femaleCount = 0;
+        $maleCount = 0;
+        foreach ($genderData as $gender) {
+            if ($gender['patient_gender'] === 'female') {
+                $femaleCount += (int)$gender['quantity'];
+            } elseif ($gender['patient_gender'] === 'male') {
+                $maleCount += (int)$gender['quantity'];
+            } elseif ($gender['patient_gender'] === null) {
+                $femaleCount += (int)$gender['quantity'];
+            }
+        }
+
+        $genderStats = [
+            [
+                'patient_gender' => 'female',
+                'quantity' => $femaleCount,
+                'percentage' => $totalDonations > 0 ? round(($femaleCount / $totalDonations) * 100) : 0,
+            ],
+            [
+                'patient_gender' => 'male',
+                'quantity' => $maleCount,
+                'percentage' => $totalDonations > 0 ? round(($maleCount / $totalDonations) * 100) : 0,
+            ],
+        ];
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => [
+                'totalDonations' => $totalDonations,
+                'diseases' => $diseaseData,
+                'bloodTypes' => $bloodTypeMap,
+                'hospitals' => $hospitalList,
+                'genderStats' => $genderStats,
+                'period' => [
+                    'year' => $year,
+                    'month' => $month,
+                ]
+            ],
+        ]);
+    }
+
     protected function getTotalMembers()
     {
         $member = Member::find()->count();
