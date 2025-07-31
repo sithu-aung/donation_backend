@@ -40,16 +40,27 @@ class MemberController extends BaseApiController
         }
 
         // Apply pagination and ordering
-        $query = $query->offset($page * $limit)
-                       ->limit($limit)
-                       ->orderBy("id");
+        $queryClone = clone $query;
+        $members = $query->with('donations')
+                         ->offset($page * $limit)
+                         ->limit($limit)
+                         ->orderBy("id")
+                         ->all();
+
+        // Calculate total donation count for each member
+        foreach ($members as $member) {
+            $systemDonationCount = count($member->donations);
+            $beforeCount = intval($member->member_count ?? 0);
+            $totalCount = $beforeCount + $systemDonationCount;
+            $member->total_count = strval($totalCount);
+        }
 
         // Get the total count after applying filters
-        $total = $query->count();
+        $total = $queryClone->count();
 
         return $this->asJson([
             'status' => 'ok',
-            'data' => $query->all(),
+            'data' => $members,
             'total' => $total,
         ]);
     }
@@ -75,11 +86,24 @@ class MemberController extends BaseApiController
             ]);
         }
 
+        // Calculate total donation count
+        $systemDonationCount = count($member->donations);
+        $beforeCount = intval($member->member_count ?? 0);
+        $totalCount = $beforeCount + $systemDonationCount;
+        
+        // Update total_count in the member object
+        $member->total_count = strval($totalCount);
+
         return $this->asJson([
             'status' => 'ok',
             'data' => [
                 'member' => $member,
                 'donations' => $member->donations,
+                'donation_counts' => [
+                    'before_joining' => $beforeCount,
+                    'in_system' => $systemDonationCount,
+                    'total' => $totalCount
+                ]
             ],
         ]);
     }
@@ -107,7 +131,7 @@ class MemberController extends BaseApiController
         $member->blood_bank_card = $data['blood_bank_card'] ?? null;
         $member->blood_type = $data['blood_type'] ?? null;
         $member->father_name = $data['father_name'] ?? null;
-        $member->member_count = "0";
+        $member->member_count = $data['member_count'] ?? "0";
         $member->name = $data['name'] ?? null;
         $member->note = $data['note'] ?? null;
         $member->nrc = $data['nrc'] ?? null;
