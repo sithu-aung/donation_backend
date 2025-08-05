@@ -326,7 +326,7 @@ class DonationController extends BaseApiController
                 ld.latest_donation_date,
                 ps.donation_count
             FROM latest_donations ld
-            LEFT JOIN member m ON ld.member_id::integer = m.id
+            LEFT JOIN member m ON ld.member_id = m.member_id
             LEFT JOIN patient_stats ps ON ld.patient_name = ps.patient_name
             WHERE ld.rn = 1
         ";
@@ -377,7 +377,7 @@ class DonationController extends BaseApiController
                     ld.latest_donation_date,
                     ps.donation_count
                 FROM latest_donations ld
-                LEFT JOIN member m ON ld.member_id::integer = m.id
+                LEFT JOIN member m ON ld.member_id = m.member_id
                 LEFT JOIN patient_stats ps ON ld.patient_name = ps.patient_name
                 WHERE ld.rn = 1
             ";
