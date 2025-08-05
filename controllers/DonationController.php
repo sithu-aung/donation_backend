@@ -274,4 +274,131 @@ class DonationController extends BaseApiController
             'message' => 'Donation is deleted.'
         ]);
     }
+
+    public function actionPatientList($page = 0, $limit = 20, $q = '', $order = 'desc')
+    {
+        $offset = $page * $limit;
+        $orderDirection = strtolower($order) === 'desc' ? 'DESC' : 'ASC';
+        
+        // Build search condition
+        $searchCondition = '';
+        $params = [];
+        if (!empty($q)) {
+            $searchCondition = "WHERE d.patient_name ILIKE :q 
+                              OR d.patient_disease ILIKE :q 
+                              OR d.hospital ILIKE :q 
+                              OR d.patient_address ILIKE :q";
+            $params[':q'] = '%' . $q . '%';
+        }
+        
+        // Get unique patients with their latest donation info and count
+        $sql = "
+            WITH latest_donations AS (
+                SELECT 
+                    patient_name,
+                    patient_age,
+                    patient_address,
+                    patient_disease,
+                    hospital,
+                    member_id,
+                    id as latest_id,
+                    donation_date as latest_donation_date,
+                    ROW_NUMBER() OVER (PARTITION BY patient_name ORDER BY donation_date DESC) as rn
+                FROM donation
+                WHERE patient_name IS NOT NULL AND patient_name != ''
+            ),
+            patient_stats AS (
+                SELECT 
+                    patient_name,
+                    COUNT(*) as donation_count
+                FROM donation
+                WHERE patient_name IS NOT NULL AND patient_name != ''
+                GROUP BY patient_name
+            )
+            SELECT 
+                ld.patient_name,
+                ld.patient_age,
+                ld.patient_address,
+                ld.patient_disease,
+                ld.hospital,
+                m.blood_type as blood_group,
+                ld.latest_id,
+                ld.latest_donation_date,
+                ps.donation_count
+            FROM latest_donations ld
+            LEFT JOIN member m ON ld.member_id = m.id
+            LEFT JOIN patient_stats ps ON ld.patient_name = ps.patient_name
+            WHERE ld.rn = 1
+        ";
+        
+        // Count total unique patients for pagination
+        $countSql = "
+            SELECT COUNT(DISTINCT patient_name) as count
+            FROM donation d
+            WHERE patient_name IS NOT NULL AND patient_name != ''
+            $searchCondition
+        ";
+        
+        $count = Yii::$app->db->createCommand($countSql, $params)->queryScalar();
+        
+        // Add search condition to main query
+        if (!empty($searchCondition)) {
+            $sql = "
+                WITH latest_donations AS (
+                    SELECT 
+                        d.patient_name,
+                        d.patient_age,
+                        d.patient_address,
+                        d.patient_disease,
+                        d.hospital,
+                        d.member_id,
+                        d.id as latest_id,
+                        d.donation_date as latest_donation_date,
+                        ROW_NUMBER() OVER (PARTITION BY d.patient_name ORDER BY d.donation_date DESC) as rn
+                    FROM donation d
+                    $searchCondition
+                ),
+                patient_stats AS (
+                    SELECT 
+                        patient_name,
+                        COUNT(*) as donation_count
+                    FROM donation
+                    WHERE patient_name IS NOT NULL AND patient_name != ''
+                    GROUP BY patient_name
+                )
+                SELECT 
+                    ld.patient_name,
+                    ld.patient_age,
+                    ld.patient_address,
+                    ld.patient_disease,
+                    ld.hospital,
+                    m.blood_type as blood_group,
+                    ld.latest_id,
+                    ld.latest_donation_date,
+                    ps.donation_count
+                FROM latest_donations ld
+                LEFT JOIN member m ON ld.member_id = m.id
+                LEFT JOIN patient_stats ps ON ld.patient_name = ps.patient_name
+                WHERE ld.rn = 1
+            ";
+        }
+        
+        // Add ordering and pagination
+        $sql .= " ORDER BY ld.latest_donation_date $orderDirection
+                  LIMIT :limit OFFSET :offset";
+        
+        $params[':limit'] = $limit;
+        $params[':offset'] = $offset;
+        
+        $patients = Yii::$app->db->createCommand($sql, $params)->queryAll();
+        
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $patients,
+            'total' => (int)$count,
+            'page' => $page,
+            'limit' => $limit,
+            'hasMore' => ($offset + $limit) < $count,
+        ]);
+    }
 }
