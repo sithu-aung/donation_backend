@@ -167,8 +167,8 @@ class RequestGiveController extends BaseAuthController
                 // Get yearly totals
                 $yearlyTotal = Yii::$app->db->createCommand(
                     "SELECT 
-                        SUM(request) as totalRequest,
-                        SUM(give) as totalGive,
+                        COALESCE(SUM(request), 0) as totalRequest,
+                        COALESCE(SUM(give), 0) as totalGive,
                         COUNT(*) as count
                     FROM request_give
                     WHERE EXTRACT(YEAR FROM date) = :year"
@@ -176,10 +176,19 @@ class RequestGiveController extends BaseAuthController
                 ->bindValue(':year', $year)
                 ->queryOne();
                 
+                // Ensure we have valid data even if empty
+                if (!$yearlyTotal) {
+                    $yearlyTotal = [
+                        'totalRequest' => 0,
+                        'totalGive' => 0,
+                        'count' => 0
+                    ];
+                }
+                
                 return $this->asJson([
                     'status' => 'ok',
                     'data' => [
-                        'monthlyData' => $monthlyData,
+                        'monthlyData' => $monthlyData ?: [],
                         'yearlyTotal' => $yearlyTotal,
                         'year' => $year
                     ]
