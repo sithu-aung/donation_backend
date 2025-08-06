@@ -98,7 +98,8 @@ class Member extends \yii\db\ActiveRecord
      */
     public function getDonations()
     {
-        return $this->hasMany(Donation::class, ['member' => 'id']);
+        return $this->hasMany(Donation::class, ['member' => 'id'])
+            ->orderBy(['donation_date' => SORT_ASC]);
     }
 
     /**
