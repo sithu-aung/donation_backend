@@ -284,10 +284,10 @@ class DonationController extends BaseApiController
         $searchCondition = '';
         $params = [];
         if (!empty($q)) {
-            $searchCondition = "WHERE d.patient_name ILIKE :q 
+            $searchCondition = "AND (d.patient_name ILIKE :q 
                               OR d.patient_disease ILIKE :q 
                               OR d.hospital ILIKE :q 
-                              OR d.patient_address ILIKE :q";
+                              OR d.patient_address ILIKE :q)";
             $params[':q'] = '%' . $q . '%';
         }
         
@@ -356,6 +356,7 @@ class DonationController extends BaseApiController
                         d.donation_date as latest_donation_date,
                         ROW_NUMBER() OVER (PARTITION BY d.patient_name ORDER BY d.donation_date DESC) as rn
                     FROM donation d
+                    WHERE d.patient_name IS NOT NULL AND d.patient_name != ''
                     $searchCondition
                 ),
                 patient_stats AS (
