@@ -111,8 +111,11 @@ class RequestGiveController extends BaseAuthController
     /**
      * Get detailed report by year or by year and month
      */
-    public function actionDetailedReport($year = null, $month = null)
+    public function actionDetailedReport()
     {
+        $year = Yii::$app->request->get('year');
+        $month = Yii::$app->request->get('month');
+        
         $query = RequestGive::find();
         
         if ($year) {
