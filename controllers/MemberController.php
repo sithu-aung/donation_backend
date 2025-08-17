@@ -122,8 +122,28 @@ class MemberController extends BaseApiController
         $member->member_id = $group . '-' . $number;
 
         // Convert birth_date to 'd M Y' format
-        if (isset($data['birth_date'])) {
-            $date = DateTime::createFromFormat('Y-m-d', $data['birth_date']);
+        if (isset($data['birth_date']) && !empty($data['birth_date'])) {
+            $birthDateStr = $data['birth_date'];
+            $date = null;
+            
+            // Try multiple date formats
+            $formats = ['Y-m-d', 'd M Y', 'd MMM Y', 'j M Y', 'j MMM Y'];
+            foreach ($formats as $format) {
+                $date = DateTime::createFromFormat($format, $birthDateStr);
+                if ($date !== false) {
+                    break;
+                }
+            }
+            
+            // If still no valid date, try PHP's strtotime
+            if ($date === false || $date === null) {
+                $timestamp = strtotime($birthDateStr);
+                if ($timestamp !== false) {
+                    $date = new DateTime();
+                    $date->setTimestamp($timestamp);
+                }
+            }
+            
             $member->birth_date = $date ? $date->format('d M Y') : null;
         } else {
             $member->birth_date = null;
@@ -173,8 +193,28 @@ class MemberController extends BaseApiController
         $data = json_decode($rawBody, true);
 
         // Convert birth_date to 'd M Y' format
-        if (isset($data['birth_date'])) {
-            $date = DateTime::createFromFormat('Y-m-d', $data['birth_date']);
+        if (isset($data['birth_date']) && !empty($data['birth_date'])) {
+            $birthDateStr = $data['birth_date'];
+            $date = null;
+            
+            // Try multiple date formats
+            $formats = ['Y-m-d', 'd M Y', 'd MMM Y', 'j M Y', 'j MMM Y'];
+            foreach ($formats as $format) {
+                $date = DateTime::createFromFormat($format, $birthDateStr);
+                if ($date !== false) {
+                    break;
+                }
+            }
+            
+            // If still no valid date, try PHP's strtotime
+            if ($date === false || $date === null) {
+                $timestamp = strtotime($birthDateStr);
+                if ($timestamp !== false) {
+                    $date = new DateTime();
+                    $date->setTimestamp($timestamp);
+                }
+            }
+            
             $member->birth_date = $date ? $date->format('d M Y') : $member->birth_date;
         }
         $member->blood_bank_card = $data['blood_bank_card'] ?? $member->blood_bank_card;
