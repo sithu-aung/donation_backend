@@ -143,7 +143,7 @@ class MemberController extends BaseApiController
         $query->leftJoin('donation d', 'member.id = d.member')
               ->select(['member.*', 'MAX(d.donation_date) as last_donation_date'])
               ->groupBy('member.id')
-              ->orderBy('last_donation_date ASC NULLS FIRST'); // Farthest to nearest, NULL first
+              ->orderBy('MAX(d.donation_date) ASC NULLS FIRST'); // Farthest to nearest, NULL first
 
         // Apply pagination
         $queryClone = clone $query;
