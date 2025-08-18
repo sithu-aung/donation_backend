@@ -160,9 +160,11 @@ class MemberController extends BaseApiController
             $totalCount = $beforeCount + $systemDonationCount;
             $member->total_count = strval($totalCount);
             
-            // Set last_date to the last donation date
-            if ($member->last_donation_date) {
-                $member->last_date = $member->last_donation_date;
+            // Set last_date to the last donation date from the query result
+            // In Yii2, custom selected columns are available as attributes
+            $attributes = $member->getAttributes();
+            if (isset($attributes['last_donation_date']) && $attributes['last_donation_date']) {
+                $member->last_date = $attributes['last_donation_date'];
             }
         }
 
