@@ -229,7 +229,7 @@ class ReportController extends BaseAuthController
         ]);
     }
 
-    public function actionByHospital($limit = 20, $year = null, $month = null)
+    public function actionByHospital($limit = 100, $year = null, $month = null)
     {
         $query = Donation::find()
             ->select(['hospital', 'COUNT(*) as quantity']);
@@ -377,13 +377,12 @@ class ReportController extends BaseAuthController
             ];
         }
 
-        // Get hospital data
+        // Get hospital data (all hospitals, no limit)
         $hospitalQuery = clone $baseQuery;
         $hospitalData = $hospitalQuery
             ->select(['hospital', 'COUNT(*) as quantity'])
             ->groupBy('hospital')
             ->orderBy(['quantity' => SORT_DESC])
-            ->limit(10)
             ->asArray()
             ->all();
 
@@ -509,13 +508,12 @@ class ReportController extends BaseAuthController
             ];
         }
 
-        // Get hospital statistics
+        // Get hospital statistics (all hospitals, no limit)
         $hospitalQuery = clone $baseQuery;
         $hospitalData = $hospitalQuery
             ->select(['hospital', 'COUNT(*) as count'])
             ->groupBy('hospital')
             ->orderBy(['count' => SORT_DESC])
-            ->limit(10)
             ->asArray()
             ->all();
 
