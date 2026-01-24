@@ -12,6 +12,9 @@ class DonationController extends BaseApiController
         $query = Donation::find()
             ->with(['member0' => function($query) {
                 $query->select(['id', 'name', 'blood_type', 'phone', 'address', 'nrc', 'father_name','blood_bank_card','birth_date','member_id']);
+            }])
+            ->with(['patient' => function($query) {
+                $query->select(['id', 'name', 'phone', 'address', 'age', 'gender']);
             }]);
 
         // Apply filters
@@ -148,6 +151,7 @@ class DonationController extends BaseApiController
     {
         $donation = Donation::find()
             ->with('member0')
+            ->with('patient')
             ->where(['id' => $id])
             ->asArray()
             ->one();
@@ -189,6 +193,7 @@ class DonationController extends BaseApiController
         $donation->patient_age = Yii::$app->request->post('patient_age');
         $donation->patient_disease = Yii::$app->request->post('patient_disease');
         $donation->patient_name = Yii::$app->request->post('patient_name');
+        $donation->patient_id = Yii::$app->request->post('patient_id');
         $donation->owner_id = Yii::$app->request->post('owner_id');
 
         if (!$donation->save()) {
@@ -198,6 +203,14 @@ class DonationController extends BaseApiController
                 'errors' => $donation->errors,
             ]);
         }
+
+        // Reload with relations
+        $donation = Donation::find()
+            ->with('member0')
+            ->with('patient')
+            ->where(['id' => $donation->id])
+            ->asArray()
+            ->one();
 
         return $this->asJson([
             'status' => 'ok',
@@ -237,6 +250,7 @@ class DonationController extends BaseApiController
         $donation->patient_age = Yii::$app->request->post('patient_age');
         $donation->patient_disease = Yii::$app->request->post('patient_disease');
         $donation->patient_name = Yii::$app->request->post('patient_name');
+        $donation->patient_id = Yii::$app->request->post('patient_id');
         $donation->owner_id = Yii::$app->request->post('owner_id');
 
         if (!$donation->save()) {
@@ -246,6 +260,14 @@ class DonationController extends BaseApiController
                 'errors' => $donation->errors,
             ]);
         }
+
+        // Reload with relations
+        $donation = Donation::find()
+            ->with('member0')
+            ->with('patient')
+            ->where(['id' => $donation->id])
+            ->asArray()
+            ->one();
 
         return $this->asJson([
             'status' => 'ok',

@@ -16,18 +16,22 @@ class DonarRecordController extends BaseApiController
         $startDate = Yii::$app->request->get('startDate');
         $endDate = Yii::$app->request->get('endDate');
 
-        $query = DonarRecord::find();
-        
+        $query = DonarRecord::find()
+            ->with(['moneyDonor' => function($query) {
+                $query->select(['id', 'name', 'phone', 'is_organization']);
+            }]);
+
         if ($startDate && $endDate) {
             $query->andWhere(['between', 'date', $startDate, $endDate]);
         }
-        
+
         $count = $query->count();
-        
+
         $records = $query
             ->offset($page * $limit)
             ->limit($limit)
             ->orderBy(['date' => SORT_DESC])
+            ->asArray()
             ->all();
 
         return $this->asJson([
@@ -50,6 +54,13 @@ class DonarRecordController extends BaseApiController
                 'errors' => $record->errors
             ]);
         }
+
+        // Reload with relations
+        $record = DonarRecord::find()
+            ->with('moneyDonor')
+            ->where(['id' => $record->id])
+            ->asArray()
+            ->one();
 
         return $this->asJson([
             'status' => 'ok',
@@ -77,6 +88,13 @@ class DonarRecordController extends BaseApiController
                 'errors' => $record->errors
             ]);
         }
+
+        // Reload with relations
+        $record = DonarRecord::find()
+            ->with('moneyDonor')
+            ->where(['id' => $record->id])
+            ->asArray()
+            ->one();
 
         return $this->asJson([
             'status' => 'ok',

@@ -17,9 +17,11 @@ use Yii;
  * @property string|null $patient_age
  * @property string|null $patient_disease
  * @property string|null $patient_name
+ * @property int|null $patient_id
  * @property string $owner_id
  *
  * @property Member $member0
+ * @property Patient $patient
  */
 class Donation extends \yii\db\ActiveRecord
 {
@@ -38,11 +40,12 @@ class Donation extends \yii\db\ActiveRecord
     {
         return [
             [['donation_date'], 'safe'],
-            [['member'], 'default', 'value' => null],
-            [['member'], 'integer'],
+            [['member', 'patient_id'], 'default', 'value' => null],
+            [['member', 'patient_id'], 'integer'],
             [['owner_id'], 'required'],
             [['date', 'hospital', 'member_id', 'patient_address', 'patient_age', 'patient_disease', 'patient_name', 'owner_id'], 'string', 'max' => 255],
             [['member'], 'exist', 'skipOnError' => true, 'targetClass' => Member::class, 'targetAttribute' => ['member' => 'id']],
+            [['patient_id'], 'exist', 'skipOnError' => true, 'targetClass' => Patient::class, 'targetAttribute' => ['patient_id' => 'id']],
         ];
     }
 
@@ -62,6 +65,7 @@ class Donation extends \yii\db\ActiveRecord
             'patient_age' => 'Patient Age',
             'patient_disease' => 'Patient Disease',
             'patient_name' => 'Patient Name',
+            'patient_id' => 'Patient ID',
             'owner_id' => 'Owner ID',
         ];
     }
@@ -74,5 +78,15 @@ class Donation extends \yii\db\ActiveRecord
     public function getMember0()
     {
         return $this->hasOne(Member::class, ['id' => 'member']);
+    }
+
+    /**
+     * Gets query for [[Patient]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getPatient()
+    {
+        return $this->hasOne(Patient::class, ['id' => 'patient_id']);
     }
 }
