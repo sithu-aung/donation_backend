@@ -233,44 +233,107 @@ class MoneyDonorController extends BaseApiController
     }
 
     /**
-     * Find potential duplicate donors
+     * Extract base name for fuzzy matching
+     * Removes common suffixes like "မိသားစု", "နှင့် ဇနီး", spaces after +
      */
-    public function actionFindDuplicates()
+    private function extractBaseName($name)
     {
-        $donors = MoneyDonor::find()->orderBy(['id' => SORT_ASC])->all();
-
-        // Group by normalized name
-        $groups = [];
-        foreach ($donors as $donor) {
-            $normalized = $this->normalizeName($donor->name);
-            if (!isset($groups[$normalized])) {
-                $groups[$normalized] = [];
-            }
-            $groups[$normalized][] = $donor;
+        // Remove common suffixes
+        $suffixes = ['မိသားစု', 'နှင့်ဇနီး', 'နှင့် ဇနီး', 'မိသားစု'];
+        foreach ($suffixes as $suffix) {
+            $name = str_replace($suffix, '', $name);
         }
 
-        // Find groups with more than one donor
-        $duplicates = array_filter($groups, function($group) {
-            return count($group) > 1;
-        });
+        // Normalize spaces around + symbol
+        $name = preg_replace('/\s*\+\s*/', '+', $name);
+
+        // Remove parentheses
+        $name = str_replace(['(', ')'], '', $name);
+
+        // Remove extra whitespace
+        $name = preg_replace('/\s+/', ' ', $name);
+
+        return trim($name);
+    }
+
+    /**
+     * Calculate similarity between two names
+     */
+    private function nameSimilarity($name1, $name2)
+    {
+        $base1 = $this->extractBaseName($name1);
+        $base2 = $this->extractBaseName($name2);
+
+        // Check if one starts with the other (covers cases like truncation)
+        if (mb_strpos($base1, $base2) === 0 || mb_strpos($base2, $base1) === 0) {
+            return 0.95;
+        }
+
+        // Check if names contain each other
+        if (mb_strpos($base1, $base2) !== false || mb_strpos($base2, $base1) !== false) {
+            return 0.85;
+        }
+
+        // Calculate character similarity using similar_text
+        similar_text($base1, $base2, $percent);
+        return $percent / 100;
+    }
+
+    /**
+     * Find potential duplicate donors with fuzzy matching
+     */
+    public function actionFindDuplicates($threshold = 0.75)
+    {
+        $donors = MoneyDonor::find()->orderBy(['id' => SORT_ASC])->all();
+        $donorCount = count($donors);
+
+        // Find similar pairs using fuzzy matching
+        $processed = [];
+        $duplicateGroups = [];
+
+        for ($i = 0; $i < $donorCount; $i++) {
+            if (isset($processed[$donors[$i]->id])) continue;
+
+            $group = [$donors[$i]];
+            $processed[$donors[$i]->id] = true;
+
+            for ($j = $i + 1; $j < $donorCount; $j++) {
+                if (isset($processed[$donors[$j]->id])) continue;
+
+                $similarity = $this->nameSimilarity($donors[$i]->name, $donors[$j]->name);
+
+                if ($similarity >= $threshold) {
+                    $group[] = $donors[$j];
+                    $processed[$donors[$j]->id] = true;
+                }
+            }
+
+            if (count($group) > 1) {
+                $duplicateGroups[] = $group;
+            }
+        }
 
         $result = [];
-        foreach ($duplicates as $normalized => $group) {
+        foreach ($duplicateGroups as $group) {
             $groupData = [
-                'normalized_name' => $normalized,
                 'donors' => [],
+                'similarity' => round($this->nameSimilarity($group[0]->name, $group[1]->name) * 100, 1),
             ];
 
             foreach ($group as $donor) {
-                $count = $donor->getDonationCount();
-                $total = $donor->getTotalAmount();
+                $stats = DonarRecord::find()
+                    ->where(['money_donor_id' => $donor->id])
+                    ->select(['COUNT(*) as count', 'COALESCE(SUM(amount), 0) as total'])
+                    ->asArray()
+                    ->one();
+
                 $groupData['donors'][] = [
                     'id' => $donor->id,
                     'name' => $donor->name,
                     'phone' => $donor->phone,
                     'address' => $donor->address,
-                    'donation_count' => $count,
-                    'total_amount' => $total,
+                    'donation_count' => (int)($stats['count'] ?? 0),
+                    'total_amount' => (int)($stats['total'] ?? 0),
                 ];
             }
 
@@ -282,6 +345,107 @@ class MoneyDonorController extends BaseApiController
             'data' => $result,
             'count' => count($result),
         ]);
+    }
+
+    /**
+     * Merge specific donors by IDs
+     * @param string $ids Comma-separated IDs to merge (first ID is kept)
+     */
+    public function actionMergeSpecific($ids)
+    {
+        $idArray = array_map('intval', explode(',', $ids));
+
+        if (count($idArray) < 2) {
+            return $this->asJson([
+                'status' => 'error',
+                'message' => 'At least 2 donor IDs required.',
+            ]);
+        }
+
+        // Get all donors
+        $donors = MoneyDonor::find()
+            ->where(['id' => $idArray])
+            ->orderBy(['id' => SORT_ASC])
+            ->all();
+
+        if (count($donors) < 2) {
+            return $this->asJson([
+                'status' => 'error',
+                'message' => 'Could not find all specified donors.',
+            ]);
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+
+        try {
+            // Keep the first donor (lowest ID)
+            $keepDonor = $donors[0];
+            $duplicateDonors = array_slice($donors, 1);
+
+            $mergedRecords = 0;
+            $deletedDonors = [];
+
+            foreach ($duplicateDonors as $duplicate) {
+                // Move donation records
+                $updated = DonarRecord::updateAll(
+                    ['money_donor_id' => $keepDonor->id],
+                    ['money_donor_id' => $duplicate->id]
+                );
+                $mergedRecords += $updated;
+
+                // Merge any missing info
+                if (empty($keepDonor->phone) && !empty($duplicate->phone)) {
+                    $keepDonor->phone = $duplicate->phone;
+                }
+                if (empty($keepDonor->address) && !empty($duplicate->address)) {
+                    $keepDonor->address = $duplicate->address;
+                }
+                if (empty($keepDonor->note) && !empty($duplicate->note)) {
+                    $keepDonor->note = $duplicate->note;
+                }
+
+                $deletedDonors[] = [
+                    'id' => $duplicate->id,
+                    'name' => $duplicate->name,
+                    'records_moved' => $updated,
+                ];
+
+                // Delete the duplicate
+                $duplicate->delete();
+            }
+
+            // Save any merged info
+            $keepDonor->save(false);
+
+            $transaction->commit();
+
+            // Get updated stats
+            $stats = DonarRecord::find()
+                ->where(['money_donor_id' => $keepDonor->id])
+                ->select(['COUNT(*) as count', 'COALESCE(SUM(amount), 0) as total'])
+                ->asArray()
+                ->one();
+
+            return $this->asJson([
+                'status' => 'ok',
+                'message' => 'Merge successful.',
+                'kept_donor' => [
+                    'id' => $keepDonor->id,
+                    'name' => $keepDonor->name,
+                    'donation_count' => (int)($stats['count'] ?? 0),
+                    'total_amount' => (int)($stats['total'] ?? 0),
+                ],
+                'deleted_donors' => $deletedDonors,
+                'total_records_merged' => $mergedRecords,
+            ]);
+
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            return $this->asJson([
+                'status' => 'error',
+                'message' => 'Merge failed: ' . $e->getMessage(),
+            ]);
+        }
     }
 
     /**
