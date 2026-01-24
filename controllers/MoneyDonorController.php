@@ -217,6 +217,187 @@ class MoneyDonorController extends BaseApiController
     }
 
     /**
+     * Normalize a donor name for comparison
+     * - Remove parentheses and replace with space
+     * - Remove extra whitespace
+     * - Trim
+     */
+    private function normalizeName($name)
+    {
+        // Replace parentheses with space
+        $name = str_replace(['(', ')'], ' ', $name);
+        // Replace multiple spaces with single space
+        $name = preg_replace('/\s+/', ' ', $name);
+        // Trim
+        return trim($name);
+    }
+
+    /**
+     * Find potential duplicate donors
+     */
+    public function actionFindDuplicates()
+    {
+        $donors = MoneyDonor::find()->orderBy(['id' => SORT_ASC])->all();
+
+        // Group by normalized name
+        $groups = [];
+        foreach ($donors as $donor) {
+            $normalized = $this->normalizeName($donor->name);
+            if (!isset($groups[$normalized])) {
+                $groups[$normalized] = [];
+            }
+            $groups[$normalized][] = $donor;
+        }
+
+        // Find groups with more than one donor
+        $duplicates = array_filter($groups, function($group) {
+            return count($group) > 1;
+        });
+
+        $result = [];
+        foreach ($duplicates as $normalized => $group) {
+            $groupData = [
+                'normalized_name' => $normalized,
+                'donors' => [],
+            ];
+
+            foreach ($group as $donor) {
+                $count = $donor->getDonationCount();
+                $total = $donor->getTotalAmount();
+                $groupData['donors'][] = [
+                    'id' => $donor->id,
+                    'name' => $donor->name,
+                    'phone' => $donor->phone,
+                    'address' => $donor->address,
+                    'donation_count' => $count,
+                    'total_amount' => $total,
+                ];
+            }
+
+            $result[] = $groupData;
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $result,
+            'count' => count($result),
+        ]);
+    }
+
+    /**
+     * Merge duplicate donors
+     * Keeps the donor with the lowest ID and merges all donation records
+     */
+    public function actionMergeDuplicates()
+    {
+        $donors = MoneyDonor::find()->orderBy(['id' => SORT_ASC])->all();
+
+        // Group by normalized name
+        $groups = [];
+        foreach ($donors as $donor) {
+            $normalized = $this->normalizeName($donor->name);
+            if (!isset($groups[$normalized])) {
+                $groups[$normalized] = [];
+            }
+            $groups[$normalized][] = $donor;
+        }
+
+        // Find groups with more than one donor
+        $duplicates = array_filter($groups, function($group) {
+            return count($group) > 1;
+        });
+
+        if (empty($duplicates)) {
+            return $this->asJson([
+                'status' => 'ok',
+                'message' => 'No duplicates found.',
+                'merged' => 0,
+                'deleted' => 0,
+            ]);
+        }
+
+        $mergedCount = 0;
+        $deletedCount = 0;
+        $mergeLog = [];
+
+        $transaction = Yii::$app->db->beginTransaction();
+
+        try {
+            foreach ($duplicates as $normalized => $group) {
+                // Sort by ID to keep the lowest
+                usort($group, function($a, $b) {
+                    return $a->id - $b->id;
+                });
+
+                $keepDonor = $group[0]; // Keep the one with lowest ID
+                $duplicateDonors = array_slice($group, 1);
+
+                $logEntry = [
+                    'kept_id' => $keepDonor->id,
+                    'kept_name' => $keepDonor->name,
+                    'merged_from' => [],
+                ];
+
+                foreach ($duplicateDonors as $duplicate) {
+                    // Count donations to be moved
+                    $donationsCount = DonarRecord::find()
+                        ->where(['money_donor_id' => $duplicate->id])
+                        ->count();
+
+                    // Update all donation records to point to the kept donor
+                    $updated = DonarRecord::updateAll(
+                        ['money_donor_id' => $keepDonor->id],
+                        ['money_donor_id' => $duplicate->id]
+                    );
+
+                    // Merge any additional info if the kept donor is missing it
+                    if (empty($keepDonor->phone) && !empty($duplicate->phone)) {
+                        $keepDonor->phone = $duplicate->phone;
+                    }
+                    if (empty($keepDonor->address) && !empty($duplicate->address)) {
+                        $keepDonor->address = $duplicate->address;
+                    }
+                    if (empty($keepDonor->note) && !empty($duplicate->note)) {
+                        $keepDonor->note = $duplicate->note;
+                    }
+
+                    $logEntry['merged_from'][] = [
+                        'id' => $duplicate->id,
+                        'name' => $duplicate->name,
+                        'donations_moved' => $updated,
+                    ];
+
+                    // Delete the duplicate donor
+                    $duplicate->delete();
+                    $deletedCount++;
+                    $mergedCount++;
+                }
+
+                // Save any merged info on the kept donor
+                $keepDonor->save(false);
+                $mergeLog[] = $logEntry;
+            }
+
+            $transaction->commit();
+
+            return $this->asJson([
+                'status' => 'ok',
+                'message' => 'Merge complete.',
+                'merged' => $mergedCount,
+                'deleted' => $deletedCount,
+                'log' => $mergeLog,
+            ]);
+
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            return $this->asJson([
+                'status' => 'error',
+                'message' => 'Merge failed: ' . $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Get donation report for a specific donor
      */
     public function actionReport($id)
