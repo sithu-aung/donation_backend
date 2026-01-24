@@ -349,9 +349,10 @@ class MoneyDonorController extends BaseApiController
 
     /**
      * Merge specific donors by IDs
-     * @param string $ids Comma-separated IDs to merge (first ID is kept)
+     * @param string $ids Comma-separated IDs to merge
+     * @param int $keepId The ID of the donor to keep (name will be preserved from this donor)
      */
-    public function actionMergeSpecific($ids)
+    public function actionMergeSpecific($ids, $keepId = null)
     {
         $idArray = array_map('intval', explode(',', $ids));
 
@@ -378,9 +379,31 @@ class MoneyDonorController extends BaseApiController
         $transaction = Yii::$app->db->beginTransaction();
 
         try {
-            // Keep the first donor (lowest ID)
-            $keepDonor = $donors[0];
-            $duplicateDonors = array_slice($donors, 1);
+            // Determine which donor to keep
+            $keepDonor = null;
+            $duplicateDonors = [];
+
+            if ($keepId !== null) {
+                // Find the donor with the specified keepId
+                foreach ($donors as $donor) {
+                    if ($donor->id == $keepId) {
+                        $keepDonor = $donor;
+                    } else {
+                        $duplicateDonors[] = $donor;
+                    }
+                }
+
+                if ($keepDonor === null) {
+                    return $this->asJson([
+                        'status' => 'error',
+                        'message' => 'Keep ID not found in the provided IDs.',
+                    ]);
+                }
+            } else {
+                // Default: keep the first donor (lowest ID)
+                $keepDonor = $donors[0];
+                $duplicateDonors = array_slice($donors, 1);
+            }
 
             $mergedRecords = 0;
             $deletedDonors = [];
