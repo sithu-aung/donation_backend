@@ -11,7 +11,7 @@ class MoneyDonorController extends BaseApiController
     /**
      * List money donors with pagination and search
      */
-    public function actionIndex($page = 0, $limit = 20, $q = '', $is_organization = '', $order = 'desc')
+    public function actionIndex($page = 0, $limit = 20, $q = '', $is_organization = '', $order = 'asc')
     {
         $query = MoneyDonor::find();
 

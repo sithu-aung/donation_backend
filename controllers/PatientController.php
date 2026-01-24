@@ -11,7 +11,7 @@ class PatientController extends BaseApiController
     /**
      * List patients with pagination and search
      */
-    public function actionIndex($page = 0, $limit = 20, $q = '', $gender = '', $order = 'desc')
+    public function actionIndex($page = 0, $limit = 20, $q = '', $gender = '', $order = 'asc')
     {
         $query = Patient::find();
 
