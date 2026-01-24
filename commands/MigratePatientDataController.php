@@ -27,9 +27,9 @@ class MigratePatientDataController extends Controller
 
         $transaction = Yii::$app->db->beginTransaction();
         try {
-            // Get unique patients from donation table
+            // Get all donations with patient names
             $sql = "
-                SELECT DISTINCT
+                SELECT
                     patient_name,
                     patient_age,
                     patient_address,
@@ -44,25 +44,22 @@ class MigratePatientDataController extends Controller
             $donations = Yii::$app->db->createCommand($sql)->queryAll();
             $this->stdout("Found " . count($donations) . " donation records with patient names\n", Console::FG_YELLOW);
 
-            // Group by patient name and address for deduplication
+            // Group by patient name only (case-insensitive, trimmed) for deduplication
             $patientGroups = [];
             foreach ($donations as $donation) {
                 $name = trim($donation['patient_name']);
-                $address = trim($donation['patient_address'] ?? '');
 
-                // Extract township/district from address for matching
-                $township = $this->extractTownship($address);
-
-                // Create a deduplication key based on name and township
-                $key = strtolower($name) . '|' . strtolower($township);
+                // Create a deduplication key based on name only (case-insensitive)
+                $key = mb_strtolower($name, 'UTF-8');
 
                 if (!isset($patientGroups[$key])) {
                     $patientGroups[$key] = [
                         'name' => $name,
-                        'address' => $address,
+                        'address' => trim($donation['patient_address'] ?? ''),
                         'age' => $donation['patient_age'],
                         'owner_id' => $donation['owner_id'] ?? '1',
                         'diseases' => [],
+                        'addresses' => [],
                     ];
                 }
 
@@ -71,7 +68,13 @@ class MigratePatientDataController extends Controller
                     $patientGroups[$key]['diseases'][] = $donation['patient_disease'];
                 }
 
-                // Keep the most complete address
+                // Collect all addresses
+                $address = trim($donation['patient_address'] ?? '');
+                if (!empty($address)) {
+                    $patientGroups[$key]['addresses'][] = $address;
+                }
+
+                // Keep the most complete address (longest)
                 if (strlen($address) > strlen($patientGroups[$key]['address'])) {
                     $patientGroups[$key]['address'] = $address;
                 }
@@ -90,7 +93,7 @@ class MigratePatientDataController extends Controller
                 $patient->age = $patientData['age'];
                 $patient->owner_id = $patientData['owner_id'];
 
-                // Create medical notes from diseases
+                // Create medical notes from unique diseases
                 $uniqueDiseases = array_unique($patientData['diseases']);
                 if (!empty($uniqueDiseases)) {
                     $patient->medical_notes = implode(', ', $uniqueDiseases);
@@ -122,9 +125,7 @@ class MigratePatientDataController extends Controller
 
             foreach ($donations as $donation) {
                 $name = trim($donation->patient_name);
-                $address = trim($donation->patient_address ?? '');
-                $township = $this->extractTownship($address);
-                $key = strtolower($name) . '|' . strtolower($township);
+                $key = mb_strtolower($name, 'UTF-8');
 
                 if (isset($patientNameToId[$key])) {
                     $donation->patient_id = $patientNameToId[$key];
