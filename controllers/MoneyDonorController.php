@@ -119,6 +119,11 @@ class MoneyDonorController extends BaseApiController
         $data = Yii::$app->request->post();
         $donor->load($data, '');
 
+        // Set default owner_id if not provided
+        if (empty($donor->owner_id)) {
+            $donor->owner_id = 'system';
+        }
+
         if (!$donor->save()) {
             return $this->asJson([
                 'status' => 'error',
