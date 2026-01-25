@@ -11,9 +11,6 @@ use Yii;
  * @property int|null $amount
  * @property string|null $date
  * @property string|null $name
- * @property int|null $money_donor_id
- *
- * @property MoneyDonor $moneyDonor
  */
 class ExpensesRecord extends \yii\db\ActiveRecord
 {
@@ -31,11 +28,10 @@ class ExpensesRecord extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['amount', 'money_donor_id'], 'default', 'value' => null],
-            [['amount', 'money_donor_id'], 'integer'],
+            [['amount'], 'default', 'value' => null],
+            [['amount'], 'integer'],
             [['date'], 'safe'],
             [['name'], 'string', 'max' => 255],
-            [['money_donor_id'], 'exist', 'skipOnError' => true, 'targetClass' => MoneyDonor::class, 'targetAttribute' => ['money_donor_id' => 'id']],
         ];
     }
 
@@ -49,17 +45,6 @@ class ExpensesRecord extends \yii\db\ActiveRecord
             'amount' => 'Amount',
             'date' => 'Date',
             'name' => 'Name',
-            'money_donor_id' => 'Money Donor ID',
         ];
-    }
-
-    /**
-     * Gets query for [[MoneyDonor]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getMoneyDonor()
-    {
-        return $this->hasOne(MoneyDonor::class, ['id' => 'money_donor_id']);
     }
 }
