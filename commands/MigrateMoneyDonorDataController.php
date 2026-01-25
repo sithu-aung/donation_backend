@@ -144,8 +144,9 @@ class MigrateMoneyDonorDataController extends Controller
         // Convert to lowercase
         $normalized = mb_strtolower($name, 'UTF-8');
 
-        // Remove common prefixes/suffixes
-        $normalized = preg_replace('/^(u |daw |ko |ma |dr\.? |မ )/iu', '', $normalized);
+        // Only remove honorific prefixes (u/ဦး = Mr., daw/ဒေါ် = Mrs.)
+        // Keep gender prefixes: ko (ကို) and ma (မ) as they indicate different people
+        $normalized = preg_replace('/^(u |ဦး|daw |ဒေါ် |dr\.? |ဒေါက်တာ )/iu', '', $normalized);
 
         // Remove extra whitespace
         $normalized = preg_replace('/\s+/', ' ', $normalized);
