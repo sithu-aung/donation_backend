@@ -66,17 +66,35 @@ class SearchMemberController extends BaseApiController
             
             $total = Yii::$app->db->createCommand($countSql, $countParams)->queryScalar();
             
-            // Calculate total counts for each member
+            // Calculate total counts and status for each member
+            $fourMonthsAgo = date('Y-m-d', strtotime('-4 months'));
+
             foreach ($members as &$member) {
                 // Get all donations count for this member
                 $donationCount = Yii::$app->db->createCommand(
                     "SELECT COUNT(*) FROM donation WHERE member = :member_id",
                     [':member_id' => $member['id']]
                 )->queryScalar();
-                
+
                 $beforeCount = intval($member['member_count'] ?? 0);
                 $member['total_count'] = strval($beforeCount + $donationCount);
-                $member['last_date'] = $member['last_donation_in_year'];
+
+                // Get the actual last donation date (not just for the filtered year)
+                $actualLastDate = Yii::$app->db->createCommand(
+                    "SELECT MAX(donation_date) FROM donation WHERE member = :member_id",
+                    [':member_id' => $member['id']]
+                )->queryScalar();
+
+                $member['last_date'] = $actualLastDate ?? $member['last_donation_in_year'];
+
+                // Calculate status based on actual last donation date
+                // If last donation was within 4 months, status = 'unavailable'
+                // If last donation was more than 4 months ago or no donations, status = 'available'
+                if ($actualLastDate && $actualLastDate > $fourMonthsAgo) {
+                    $member['status'] = 'unavailable';
+                } else {
+                    $member['status'] = 'available';
+                }
             }
             
             return $this->asJson([
@@ -117,7 +135,9 @@ class SearchMemberController extends BaseApiController
                          ->limit($limit)
                          ->all();
 
-        // Calculate total donation count for each member
+        // Calculate total donation count and status for each member
+        $fourMonthsAgo = date('Y-m-d', strtotime('-4 months'));
+
         foreach ($members as $member) {
             // Load donations relation
             $donations = $member->getDonations()->all();
@@ -125,11 +145,31 @@ class SearchMemberController extends BaseApiController
             $beforeCount = intval($member->member_count ?? 0);
             $totalCount = $beforeCount + $systemDonationCount;
             $member->total_count = strval($totalCount);
-            
-            // Set last_date to the last donation date from the query result
-            $attributes = $member->getAttributes();
-            if (isset($attributes['last_donation_date']) && $attributes['last_donation_date']) {
-                $member->last_date = $attributes['last_donation_date'];
+
+            // Get the actual last donation date (most recent donation)
+            $actualLastDate = Yii::$app->db->createCommand(
+                "SELECT MAX(donation_date) FROM donation WHERE member = :member_id",
+                [':member_id' => $member->id]
+            )->queryScalar();
+
+            // Set last_date to the actual last donation date
+            if ($actualLastDate) {
+                $member->last_date = $actualLastDate;
+            } else {
+                // Fallback to query result if no donations in system
+                $attributes = $member->getAttributes();
+                if (isset($attributes['last_donation_date']) && $attributes['last_donation_date']) {
+                    $member->last_date = $attributes['last_donation_date'];
+                }
+            }
+
+            // Calculate status based on actual last donation date
+            // If last donation was within 4 months, status = 'unavailable'
+            // If last donation was more than 4 months ago or no donations, status = 'available'
+            if ($actualLastDate && $actualLastDate > $fourMonthsAgo) {
+                $member->status = 'unavailable';
+            } else {
+                $member->status = 'available';
             }
         }
 
