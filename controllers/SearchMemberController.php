@@ -89,20 +89,20 @@ class SearchMemberController extends BaseApiController
         // For non-year filtered requests, still sort by last donation date
         $query = Member::find();
 
-        // Search conditions
+        // Search conditions - use table prefix to avoid ambiguity with JOIN
         if ($q) {
             $query->andWhere(['or',
-                ['like', 'name', $q],
-                ['like', 'father_name', $q],
-                ['like', 'phone', $q],
-                ['like', 'blood_bank_card', $q],
-                ['like', 'member_id', $q],
+                ['like', 'member.name', $q],
+                ['like', 'member.father_name', $q],
+                ['like', 'member.phone', $q],
+                ['like', 'member.blood_bank_card', $q],
+                ['like', 'member.member_id', $q],
             ]);
         }
 
         // Filter by blood type
         if ($blood_type) {
-            $query->andWhere(['blood_type' => $blood_type]);
+            $query->andWhere(['member.blood_type' => $blood_type]);
         }
 
         // Join with donations to get last donation date and sort by it
