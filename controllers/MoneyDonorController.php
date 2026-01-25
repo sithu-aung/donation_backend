@@ -13,44 +13,51 @@ class MoneyDonorController extends BaseApiController
      */
     public function actionIndex($page = 0, $limit = 20, $q = '', $is_organization = '', $order = 'asc')
     {
-        $query = MoneyDonor::find();
+        // Build query with LEFT JOIN to get donation stats
+        $query = MoneyDonor::find()
+            ->select([
+                'money_donor.*',
+                'COUNT(donar_record.id) as donation_count',
+                'COALESCE(SUM(donar_record.amount), 0) as total_amount'
+            ])
+            ->leftJoin('donar_record', 'donar_record.money_donor_id = money_donor.id')
+            ->groupBy('money_donor.id');
 
         // Apply search filter
         if ($q) {
             $query->andWhere(['or',
-                ['ilike', 'name', $q],
-                ['ilike', 'phone', $q],
-                ['ilike', 'address', $q],
+                ['ilike', 'money_donor.name', $q],
+                ['ilike', 'money_donor.phone', $q],
+                ['ilike', 'money_donor.address', $q],
             ]);
         }
 
         // Apply organization filter
         if ($is_organization !== '') {
-            $query->andWhere(['is_organization' => $is_organization === 'true' || $is_organization === '1']);
+            $query->andWhere(['money_donor.is_organization' => $is_organization === 'true' || $is_organization === '1']);
         }
 
         // Get total count after applying filters
-        $count = $query->count();
+        // Clone query for count to avoid interference with main query
+        $countQuery = clone $query;
+        $count = $countQuery->count();
 
-        // Apply ordering and pagination
-        $direction = strtolower($order) === 'desc' ? SORT_DESC : SORT_ASC;
+        // Sort by total_amount DESC, then donation_count DESC (largest first)
         $donors = $query
             ->offset($page * $limit)
             ->limit($limit)
-            ->orderBy(['id' => $direction])
+            ->orderBy([
+                'total_amount' => SORT_DESC,
+                'donation_count' => SORT_DESC,
+                'money_donor.id' => SORT_ASC
+            ])
             ->asArray()
             ->all();
 
-        // Add donation stats for each donor
+        // Convert aggregated values to integers
         foreach ($donors as &$donor) {
-            $stats = DonarRecord::find()
-                ->where(['money_donor_id' => $donor['id']])
-                ->select(['COUNT(*) as count', 'COALESCE(SUM(amount), 0) as total'])
-                ->asArray()
-                ->one();
-
-            $donor['donation_count'] = (int)($stats['count'] ?? 0);
-            $donor['total_amount'] = (int)($stats['total'] ?? 0);
+            $donor['donation_count'] = (int)($donor['donation_count'] ?? 0);
+            $donor['total_amount'] = (int)($donor['total_amount'] ?? 0);
         }
 
         return $this->asJson([
