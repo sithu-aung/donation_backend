@@ -30,7 +30,7 @@ class DonarRecordController extends BaseApiController
         $records = $query
             ->offset($page * $limit)
             ->limit($limit)
-            ->orderBy(['date' => SORT_DESC])
+            ->orderBy(['id' => SORT_ASC])
             ->asArray()
             ->all();
 

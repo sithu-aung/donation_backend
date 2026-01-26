@@ -9,33 +9,37 @@ class SearchMemberController extends BaseApiController
 {
     public function actionIndex($page, $limit, $q = '', $blood_type = null, $donation_year = null)
     {
-        // If donation_year is provided, use optimized query with SQL JOIN
+        // If donation_year is provided, filter by the year of the member's LAST donation
         if ($donation_year) {
+            // First, get members whose LAST donation (most recent) is in the selected year
             $sql = "
-                SELECT 
+                SELECT
                     m.*,
-                    MAX(d.donation_date) as last_donation_in_year,
-                    COUNT(d.id) as year_donation_count
+                    last_d.max_date as last_donation_date
                 FROM member m
-                INNER JOIN donation d ON m.id = d.member
-                WHERE EXTRACT(YEAR FROM d.donation_date) = :year
+                INNER JOIN (
+                    SELECT member, MAX(donation_date) as max_date
+                    FROM donation
+                    GROUP BY member
+                ) last_d ON m.id = last_d.member
+                WHERE EXTRACT(YEAR FROM last_d.max_date) = :year
             ";
-            
+
             $params = [':year' => $donation_year];
-            
+
             // Add search conditions
             if ($q) {
                 $sql .= " AND (m.name ILIKE :q OR m.father_name ILIKE :q OR m.phone ILIKE :q OR m.blood_bank_card ILIKE :q OR m.member_id ILIKE :q)";
                 $params[':q'] = '%' . $q . '%';
             }
-            
+
             // Add blood type filter
             if ($blood_type) {
                 $sql .= " AND m.blood_type = :blood_type";
                 $params[':blood_type'] = $blood_type;
             }
-            
-            $sql .= " GROUP BY m.id ORDER BY last_donation_in_year ASC";
+
+            $sql .= " ORDER BY last_d.max_date ASC";
             
             // Apply pagination
             $sql .= " LIMIT :limit OFFSET :offset";
@@ -44,26 +48,30 @@ class SearchMemberController extends BaseApiController
             
             $members = Yii::$app->db->createCommand($sql, $params)->queryAll();
             
-            // Get total count
+            // Get total count - filter by year of LAST donation
             $countSql = "
-                SELECT COUNT(DISTINCT m.id) as total
+                SELECT COUNT(*) as total
                 FROM member m
-                INNER JOIN donation d ON m.id = d.member
-                WHERE EXTRACT(YEAR FROM d.donation_date) = :year
+                INNER JOIN (
+                    SELECT member, MAX(donation_date) as max_date
+                    FROM donation
+                    GROUP BY member
+                ) last_d ON m.id = last_d.member
+                WHERE EXTRACT(YEAR FROM last_d.max_date) = :year
             ";
-            
+
             $countParams = [':year' => $donation_year];
-            
+
             if ($q) {
                 $countSql .= " AND (m.name ILIKE :q OR m.father_name ILIKE :q OR m.phone ILIKE :q OR m.blood_bank_card ILIKE :q OR m.member_id ILIKE :q)";
                 $countParams[':q'] = '%' . $q . '%';
             }
-            
+
             if ($blood_type) {
                 $countSql .= " AND m.blood_type = :blood_type";
                 $countParams[':blood_type'] = $blood_type;
             }
-            
+
             $total = Yii::$app->db->createCommand($countSql, $countParams)->queryScalar();
             
             // Calculate total counts and status for each member
@@ -85,7 +93,7 @@ class SearchMemberController extends BaseApiController
                     [':member_id' => $member['id']]
                 )->queryScalar();
 
-                $member['last_date'] = $actualLastDate ?? $member['last_donation_in_year'];
+                $member['last_date'] = $actualLastDate ?? $member['last_donation_date'];
 
                 // Calculate status based on actual last donation date
                 // If last donation was within 4 months, status = 'unavailable'

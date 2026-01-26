@@ -42,13 +42,12 @@ class MoneyDonorController extends BaseApiController
         $countQuery = clone $query;
         $count = $countQuery->count();
 
-        // Sort by total_amount DESC, then donation_count DESC (largest first)
+        // Sort by created_at ASC (first created shown first)
         $donors = $query
             ->offset($page * $limit)
             ->limit($limit)
             ->orderBy([
-                'total_amount' => SORT_DESC,
-                'donation_count' => SORT_DESC,
+                'money_donor.created_at' => SORT_ASC,
                 'money_donor.id' => SORT_ASC
             ])
             ->asArray()

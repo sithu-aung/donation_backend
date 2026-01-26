@@ -9,7 +9,7 @@ use yii\web\Controller;
 
 class MemberController extends BaseApiController
 {
-    public function actionIndex($page, $limit, $q = '', $blood_type = null, $status = null, $birth_year = null)
+    public function actionIndex($page, $limit, $q = '', $blood_type = null, $status = null, $birth_year = null, $range_start = null, $range_end = null)
     {
         $query = Member::find();
 
@@ -39,12 +39,18 @@ class MemberController extends BaseApiController
             $query->andWhere(['like', 'birth_date', $birth_year]);
         }
 
+        // Range filtering - filter members by member_id range
+        if ($range_start !== null && $range_end !== null) {
+            $query->andWhere(['>=', 'member_id', $range_start])
+                  ->andWhere(['<=', 'member_id', $range_end]);
+        }
+
         // Apply pagination and ordering
         $queryClone = clone $query;
         $members = $query->with('donations')
                          ->offset($page * $limit)
                          ->limit($limit)
-                         ->orderBy("id")
+                         ->orderBy("member_id")
                          ->all();
 
         // Calculate total donation count for each member
@@ -292,6 +298,49 @@ class MemberController extends BaseApiController
             'status' => 'ok',
             'exists' => count($members) > 0,
             'members' => $members,
+        ]);
+    }
+
+    /**
+     * Returns pre-calculated range options for member list dropdown
+     * GET /member/ranges?blood_type=A (Rh +)
+     */
+    public function actionRanges($blood_type = null)
+    {
+        $query = Member::find()->select('member_id');
+
+        if ($blood_type) {
+            $query->andWhere(['blood_type' => $blood_type]);
+        }
+
+        // Get all member_ids sorted alphanumerically
+        $memberIds = $query
+            ->orderBy(['member_id' => SORT_ASC])
+            ->column();
+
+        $rangeSize = 50;
+        $ranges = [];
+        $totalMembers = count($memberIds);
+
+        for ($i = 0; $i < $totalMembers; $i += $rangeSize) {
+            $endIndex = min($i + $rangeSize - 1, $totalMembers - 1);
+            $startId = $memberIds[$i];
+            $endId = $memberIds[$endIndex];
+
+            $ranges[] = [
+                'start' => $startId,
+                'end' => $endId,
+                'label' => "{$startId} မှ {$endId}",
+                'count' => $endIndex - $i + 1,
+            ];
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => [
+                'ranges' => $ranges,
+                'totalMembers' => $totalMembers,
+            ],
         ]);
     }
 }
