@@ -119,6 +119,11 @@ class PatientController extends BaseApiController
         $data = Yii::$app->request->post();
         $patient->load($data, '');
 
+        // Auto-set owner_id if not provided
+        if (empty($patient->owner_id)) {
+            $patient->owner_id = $data['owner_id'] ?? 'system';
+        }
+
         if (!$patient->save()) {
             return $this->asJson([
                 'status' => 'error',
