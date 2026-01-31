@@ -9,7 +9,10 @@ use yii\web\Controller;
 
 class MemberController extends BaseApiController
 {
-    public function actionIndex($page, $limit, $q = '', $blood_type = null, $status = null, $birth_year = null, $range_start = null, $range_end = null)
+    public function actionIndex($page, $limit, $q = '', $blood_type = null, $status = null, $birth_year = null, $range_start = null, $range_end = null,
+        // Individual search parameters for server-side filtering
+        $phone = null, $father_name = null, $blood_bank_card = null,
+        $member_id_search = null, $birth_date = null)
     {
         $query = Member::find();
 
@@ -22,6 +25,23 @@ class MemberController extends BaseApiController
                 ['like', 'blood_bank_card', $q],
                 ['like', 'member_id', $q],
             ]);
+        }
+
+        // Individual search filters (AND logic)
+        if ($phone) {
+            $query->andWhere(['like', 'phone', $phone]);
+        }
+        if ($father_name) {
+            $query->andWhere(['like', 'father_name', $father_name]);
+        }
+        if ($blood_bank_card) {
+            $query->andWhere(['like', 'blood_bank_card', $blood_bank_card]);
+        }
+        if ($member_id_search) {
+            $query->andWhere(['like', 'member_id', $member_id_search]);
+        }
+        if ($birth_date) {
+            $query->andWhere(['like', 'birth_date', $birth_date]);
         }
 
         // Filter by blood type
