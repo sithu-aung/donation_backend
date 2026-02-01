@@ -207,7 +207,7 @@ class PatientController extends BaseApiController
     public function actionSearch($q = '', $limit = 20)
     {
         $query = Patient::find()
-            ->select(['id', 'name', 'phone', 'address', 'age', 'gender']);
+            ->select(['id', 'name', 'phone', 'address', 'age', 'gender', 'blood_type']);
 
         if ($q) {
             $query->andWhere(['or',
@@ -242,7 +242,7 @@ class PatientController extends BaseApiController
         }
 
         $query = Patient::find()
-            ->select(['id', 'name', 'phone', 'address', 'age', 'gender']);
+            ->select(['id', 'name', 'phone', 'address', 'age', 'gender', 'blood_type']);
 
         // Search by similar name
         $query->andWhere(['ilike', 'name', $name]);

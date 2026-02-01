@@ -13,6 +13,7 @@ use Yii;
  * @property string|null $address
  * @property string|null $age
  * @property string|null $gender
+ * @property string|null $blood_type
  * @property string|null $medical_notes
  * @property string|null $created_at
  * @property string $owner_id
@@ -38,7 +39,7 @@ class Patient extends \yii\db\ActiveRecord
             [['name', 'owner_id'], 'required'],
             [['medical_notes'], 'string'],
             [['created_at'], 'safe'],
-            [['name', 'phone', 'address', 'age', 'gender', 'owner_id'], 'string', 'max' => 255],
+            [['name', 'phone', 'address', 'age', 'gender', 'blood_type', 'owner_id'], 'string', 'max' => 255],
         ];
     }
 
@@ -54,6 +55,7 @@ class Patient extends \yii\db\ActiveRecord
             'address' => 'Address',
             'age' => 'Age',
             'gender' => 'Gender',
+            'blood_type' => 'Blood Type',
             'medical_notes' => 'Medical Notes',
             'created_at' => 'Created At',
             'owner_id' => 'Owner ID',
