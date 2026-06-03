@@ -2,6 +2,7 @@
 
 namespace app\controllers;
 
+use app\models\Account;
 use app\models\Member;
 use DateTime;
 use Yii;
@@ -310,6 +311,15 @@ class MemberController extends BaseApiController
      */
     public function actionUploadPhoto($id)
     {
+        // Require a valid bearer token (same scheme as BaseAuthController) — this
+        // writes to a shared Spaces bucket, so it must not be anonymous.
+        $authHeader = Yii::$app->request->headers->get('Authorization');
+        $token = $authHeader ? str_replace('Bearer ', '', $authHeader) : '';
+        if (strlen($token) !== 64 || Account::findOne(['access_token' => $token]) === null) {
+            Yii::$app->response->statusCode = 401;
+            return $this->asJson(['status' => 'error', 'message' => 'Unauthorized']);
+        }
+
         $member = Member::findOne($id);
         if ($member === null) {
             return $this->asJson(['status' => 'error', 'message' => 'No Member Found.']);
@@ -324,14 +334,19 @@ class MemberController extends BaseApiController
             return $this->asJson(['status' => 'error', 'message' => 'File too large (max 8MB).']);
         }
 
-        $types = [
-            'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
-            'gif' => 'image/gif', 'webp' => 'image/webp',
+        // Validate the actual content is a supported image (not just by
+        // extension) to avoid MIME/type confusion.
+        $info = @getimagesize($file->tempName);
+        $mimeToExt = [
+            'image/jpeg' => 'jpg', 'image/png' => 'png',
+            'image/gif' => 'gif', 'image/webp' => 'webp',
         ];
-        $ext = strtolower((string)$file->extension);
-        if (!isset($types[$ext])) {
-            $ext = 'jpg';
+        $detectedMime = is_array($info) ? ($info['mime'] ?? '') : '';
+        if (!isset($mimeToExt[$detectedMime])) {
+            return $this->asJson(['status' => 'error', 'message' => 'Invalid or unsupported image file.']);
         }
+        $ext = $mimeToExt[$detectedMime];
+        $contentType = $detectedMime;
         $body = @file_get_contents($file->tempName);
         if ($body === false) {
             return $this->asJson(['status' => 'error', 'message' => 'Could not read uploaded file.']);
@@ -347,9 +362,10 @@ class MemberController extends BaseApiController
         $key = $folder . '/member_' . $member->id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
 
         try {
-            $url = $spaces->putObject($key, $body, $types[$ext]);
+            $url = $spaces->putObject($key, $body, $contentType);
         } catch (\Exception $e) {
-            return $this->asJson(['status' => 'error', 'message' => 'Upload failed: ' . $e->getMessage()]);
+            Yii::error('Spaces upload failed: ' . $e->getMessage(), 'upload');
+            return $this->asJson(['status' => 'error', 'message' => 'Upload failed. Please try again.']);
         }
 
         $member->profile_url = $url;
