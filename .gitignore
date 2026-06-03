@@ -31,3 +31,5 @@ tests/_support/_generated
 
 #vagrant folder
 /.vagrant
+# DigitalOcean Spaces credentials (do not commit)
+config/spaces-keys.php

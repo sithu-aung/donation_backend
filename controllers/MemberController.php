@@ -6,6 +6,7 @@ use app\models\Member;
 use DateTime;
 use Yii;
 use yii\web\Controller;
+use yii\web\UploadedFile;
 
 class MemberController extends BaseApiController
 {
@@ -88,6 +89,37 @@ class MemberController extends BaseApiController
             'status' => 'ok',
             'data' => $members,
             'total' => $total,
+        ]);
+    }
+
+    /**
+     * Honorable donors: members whose total blood-donation count
+     * (legacy member_count + in-system donations) exceeds $min (default 30),
+     * ordered most -> least.
+     * GET /member/honorable-donors[?min=30]
+     */
+    public function actionHonorableDonors($min = 30)
+    {
+        $members = Member::find()->with('donations')->all();
+        $result = [];
+        foreach ($members as $member) {
+            $systemDonationCount = count($member->donations);
+            $beforeCount = intval($member->member_count ?? 0);
+            $totalCount = $beforeCount + $systemDonationCount;
+            if ($totalCount > intval($min)) {
+                $member->total_count = strval($totalCount);
+                $result[] = $member;
+            }
+        }
+
+        usort($result, function ($a, $b) {
+            return intval($b->total_count) - intval($a->total_count);
+        });
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $result,
+            'total' => count($result),
         ]);
     }
 
@@ -269,6 +301,64 @@ class MemberController extends BaseApiController
         return $this->asJson([
             'status' => 'ok',
             'data' => $member
+        ]);
+    }
+
+    /**
+     * Upload a member's profile photo to DigitalOcean Spaces and store the URL.
+     * POST /member/upload-photo?id=<id>   (multipart/form-data, field "photo")
+     */
+    public function actionUploadPhoto($id)
+    {
+        $member = Member::findOne($id);
+        if ($member === null) {
+            return $this->asJson(['status' => 'error', 'message' => 'No Member Found.']);
+        }
+
+        $file = UploadedFile::getInstanceByName('photo')
+            ?? UploadedFile::getInstanceByName('file');
+        if ($file === null) {
+            return $this->asJson(['status' => 'error', 'message' => 'No file uploaded.']);
+        }
+        if ($file->size > 8 * 1024 * 1024) {
+            return $this->asJson(['status' => 'error', 'message' => 'File too large (max 8MB).']);
+        }
+
+        $types = [
+            'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+            'gif' => 'image/gif', 'webp' => 'image/webp',
+        ];
+        $ext = strtolower((string)$file->extension);
+        if (!isset($types[$ext])) {
+            $ext = 'jpg';
+        }
+        $body = @file_get_contents($file->tempName);
+        if ($body === false) {
+            return $this->asJson(['status' => 'error', 'message' => 'Could not read uploaded file.']);
+        }
+
+        $cfg = Yii::$app->params['digitalocean']['spaces'] ?? [];
+        $spaces = new \app\components\DoSpaces($cfg);
+        if (!$spaces->isConfigured()) {
+            return $this->asJson(['status' => 'error', 'message' => 'Upload service not configured.']);
+        }
+
+        $folder = rtrim($cfg['folder'] ?? 'redjuniors/members', '/');
+        $key = $folder . '/member_' . $member->id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+
+        try {
+            $url = $spaces->putObject($key, $body, $types[$ext]);
+        } catch (\Exception $e) {
+            return $this->asJson(['status' => 'error', 'message' => 'Upload failed: ' . $e->getMessage()]);
+        }
+
+        $member->profile_url = $url;
+        $member->save(false, ['profile_url']);
+
+        return $this->asJson([
+            'status' => 'ok',
+            'url' => $url,
+            'data' => $member,
         ]);
     }
 
