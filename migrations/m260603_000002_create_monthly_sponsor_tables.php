@@ -3,7 +3,7 @@
 use yii\db\Migration;
 
 /**
- * Monthly Sponsors (လစဥ်ထောက်ပြံ့သူများ): a standalone record of recurring
+ * Monthly Sponsors (လစဥ်ထောက်ပံ့သူများ): a standalone record of recurring
  * sponsors and their per-month donation amounts. Intentionally separate from
  * donar_record / expenses_record so it never appears in income/expense reports.
  */
