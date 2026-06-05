@@ -124,6 +124,27 @@ class PatientController extends BaseApiController
             $patient->owner_id = $data['owner_id'] ?? 'system';
         }
 
+        // Duplicate guard: refuse a patient whose name + township + ward/village
+        // already exist, so accidentally submitting the same person twice does
+        // not create two identical rows. The client may resend with force=1 when
+        // it really is a different person who happens to share name and area.
+        $force = filter_var($data['force'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if (!$force) {
+            $existing = $this->findDuplicate(
+                $patient->name,
+                $patient->township,
+                $patient->ward,
+                $patient->village
+            );
+            if ($existing !== null) {
+                return $this->asJson([
+                    'status' => 'duplicate',
+                    'message' => 'ဤအမည်၊ မြို့နယ်နှင့် ရပ်ကွက်/ကျေးရွာ တူညီသော လူနာ ရှိပြီးဖြစ်ပါသည်။',
+                    'data' => $existing,
+                ]);
+            }
+        }
+
         if (!$patient->save()) {
             return $this->asJson([
                 'status' => 'error',
@@ -136,6 +157,34 @@ class PatientController extends BaseApiController
             'status' => 'ok',
             'data' => $patient,
         ]);
+    }
+
+    /**
+     * Find an existing patient that matches on name + township + ward + village.
+     *
+     * Matching is whitespace-trimmed and case-insensitive. Comparing both ward
+     * and village keeps a ward-based address distinct from a village-based one
+     * even when they share a name and township. Returns the row as an array, or
+     * null when no duplicate exists.
+     */
+    private function findDuplicate($name, $township, $ward, $village, $excludeId = null)
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return null;
+        }
+
+        $query = Patient::find()
+            ->andWhere('LOWER(TRIM(name)) = LOWER(:name)', [':name' => $name])
+            ->andWhere("LOWER(TRIM(COALESCE(township, ''))) = LOWER(:township)", [':township' => trim((string) $township)])
+            ->andWhere("LOWER(TRIM(COALESCE(ward, ''))) = LOWER(:ward)", [':ward' => trim((string) $ward)])
+            ->andWhere("LOWER(TRIM(COALESCE(village, ''))) = LOWER(:village)", [':village' => trim((string) $village)]);
+
+        if ($excludeId !== null) {
+            $query->andWhere(['<>', 'id', $excludeId]);
+        }
+
+        return $query->asArray()->one();
     }
 
     /**
