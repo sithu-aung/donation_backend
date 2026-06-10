@@ -251,18 +251,24 @@ class PatientController extends BaseApiController
     }
 
     /**
-     * Search patients for dropdown
+     * Search patients for dropdown. Matches name, phone, blood type and any
+     * part of the address (combined address, township, ward, village) so the
+     * picker can distinguish same-named patients.
      */
     public function actionSearch($q = '', $limit = 20)
     {
         $query = Patient::find()
-            ->select(['id', 'name', 'phone', 'address', 'age', 'gender', 'blood_type']);
+            ->select(['id', 'name', 'phone', 'address', 'township', 'ward', 'village', 'age', 'gender', 'blood_type']);
 
         if ($q) {
             $query->andWhere(['or',
                 ['ilike', 'name', $q],
                 ['ilike', 'phone', $q],
                 ['ilike', 'address', $q],
+                ['ilike', 'blood_type', $q],
+                ['ilike', 'township', $q],
+                ['ilike', 'ward', $q],
+                ['ilike', 'village', $q],
             ]);
         }
 

@@ -250,7 +250,12 @@ class DonationController extends BaseApiController
         $donation->patient_age = Yii::$app->request->post('patient_age');
         $donation->patient_disease = Yii::$app->request->post('patient_disease');
         $donation->patient_name = Yii::$app->request->post('patient_name');
-        $donation->patient_id = Yii::$app->request->post('patient_id');
+        // Only touch the patient link when the client actually sends it, so
+        // older app builds that omit patient_id cannot wipe an existing link.
+        $patientId = Yii::$app->request->post('patient_id', false);
+        if ($patientId !== false) {
+            $donation->patient_id = $patientId === '' ? null : $patientId;
+        }
         $donation->owner_id = Yii::$app->request->post('owner_id');
 
         if (!$donation->save()) {
