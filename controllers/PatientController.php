@@ -211,9 +211,24 @@ class PatientController extends BaseApiController
             ]);
         }
 
+        // Keep the denormalized snapshot on this patient's linked donations in
+        // sync with the corrected patient record. Donations carry their own copy
+        // of patient_name / patient_address, so without this a correction to the
+        // patient (e.g. a wrong ward) would never reach the donation rows that
+        // display it. Only identity + location are propagated; patient_age and
+        // patient_disease are point-in-time per donation and left untouched.
+        $synced = Donation::updateAll(
+            [
+                'patient_name' => $patient->name,
+                'patient_address' => $patient->address,
+            ],
+            ['patient_id' => $patient->id]
+        );
+
         return $this->asJson([
             'status' => 'ok',
             'data' => $patient,
+            'donations_synced' => $synced,
         ]);
     }
 

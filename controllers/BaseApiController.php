@@ -43,4 +43,19 @@ class BaseApiController extends Controller
         \Yii::$app->response->statusCode = 200;
         return;
     }
+
+    /**
+     * Tell clients not to cache API responses. Without this the API sends no
+     * cache headers, so a browser/service worker can keep showing an outdated
+     * denormalized snapshot (e.g. a just-corrected patient address) until its
+     * own disk cache expires, even after a refresh.
+     */
+    public function afterAction($action, $result)
+    {
+        $result = parent::afterAction($action, $result);
+        $headers = \Yii::$app->response->headers;
+        $headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $headers->set('Pragma', 'no-cache');
+        return $result;
+    }
 }
