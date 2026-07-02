@@ -1,68 +1,62 @@
 # Deployment Instructions for Backend
 
-## Quick Deploy (For Server Administrator)
+## Production Server (since 2026-07-02)
 
-To deploy the latest backend changes to the server, follow these steps:
+The backend runs on the shared Contabo VPS — **no longer on AWS**.
 
-1. **SSH into the server:**
+- Server: `207.180.244.55` (host `vmi3014550`, shared with medico, hello7, property, etc.)
+- SSH: `ssh root@207.180.244.55`
+- App dir: `/var/www/donation_backend`
+- Web server: nginx (`/etc/nginx/sites-available/donation` + `/etc/nginx/snippets/donation-app.conf`) + php8.3-fpm
+- Database: PostgreSQL 16, db `donation`, role `donation_user` (password in `config/db.php` on the server; file is `skip-worktree` so git pull never touches it)
+- Public URLs:
+  - `https://207-180-244-55.sslip.io/` — primary API URL used by the Flutter app (Let's Encrypt cert, auto-renews via certbot)
+  - `http://207.180.244.55:8087/` — direct HTTP (testing)
+  - `https://redjuniors.mooo.com/` — legacy URL; works only if its DNS A record points to 207.180.244.55 (cert copied from AWS lives at `/etc/nginx/ssl-redjuniors/`)
+  - `/api/*.json` — legacy static JSONs (dhamma/diwar apps) served from `/var/www/legacy-aws-api`
+
+## Quick Deploy
+
 ```bash
-ssh root@redjuniors.mooo.com
-```
-
-2. **Navigate to the backend directory:**
-```bash
+ssh root@207.180.244.55
 cd /var/www/donation_backend
-```
-
-3. **Pull the latest changes from GitHub:**
-```bash
 git pull origin main
+php yii cache/flush-all        # if needed
+chown -R www-data:www-data runtime web/assets
 ```
 
-4. **Clear Yii2 cache (if needed):**
-```bash
-php yii cache/flush-all
-```
-
-5. **Ensure proper permissions:**
-```bash
-chmod -R 755 web/assets
-chmod -R 777 runtime
-```
-
-## Recent Changes That Need Deployment
-
-### RequestGiveController.php
-- Fixed `actionDetailedReport` to properly handle GET parameters
-- Added COALESCE to SQL queries to handle NULL values
-- Ensure empty arrays are returned instead of null
+nginx/php-fpm reload is normally NOT needed for PHP code changes.
 
 ## Testing the API
 
-After deployment, test the API endpoint:
-
 ```bash
-# Test with authentication token
-curl -X GET "https://redjuniors.mooo.com/request-give/detailed-report?year=2025" \
+curl -X GET "https://207-180-244-55.sslip.io/report/dashboard" \
   -H "Authorization: Bearer YOUR_TOKEN_HERE" \
   -H "Accept: application/json"
 ```
 
 ## Troubleshooting
 
-If the API still returns errors:
-
-1. Check PHP error logs:
-```bash
-tail -f /var/log/php/error.log
-```
-
-2. Check Yii2 application logs:
+1. Yii2 application logs:
 ```bash
 tail -f /var/www/donation_backend/runtime/logs/app.log
 ```
 
-3. Verify database connection:
+2. nginx/php errors:
+```bash
+tail -f /var/log/nginx/error.log
+journalctl -u php8.3-fpm -f
+```
+
+3. Database connection:
 ```bash
 php yii migrate/status
 ```
+
+## History
+
+- Until 2026-07-02 the backend ran on AWS EC2 (54.206.49.166 / redjuniors.mooo.com,
+  Apache + PostgreSQL 16). Migrated to Contabo to cut AWS costs; the final AWS DB
+  dump is kept at `donation_dump_2026-07-02_final_aws.dump` (project root, local)
+  and `/root/backups-donation/` on the server. The old database was renamed
+  `donation_old_aws` on the Contabo Postgres as an extra safety copy.
