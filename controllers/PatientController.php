@@ -90,7 +90,7 @@ class PatientController extends BaseApiController
                 $query->select(['id', 'name', 'blood_type', 'phone']);
             }])
             ->where(['patient_id' => $id])
-            ->orderBy(['donation_date' => SORT_DESC])
+            ->orderBy(['donation_date' => SORT_ASC, 'id' => SORT_ASC])
             ->asArray()
             ->all();
 
@@ -124,23 +124,28 @@ class PatientController extends BaseApiController
             $patient->owner_id = $data['owner_id'] ?? 'system';
         }
 
-        // Duplicate guard: refuse a patient whose name + township + ward/village
-        // already exist, so accidentally submitting the same person twice does
-        // not create two identical rows. The client may resend with force=1 when
-        // it really is a different person who happens to share name and area.
+        // Potential-match guard: warn only when another patient matches on ALL
+        // of name, blood type, township and ward/village. A same-name neighbour
+        // with a different blood group is a different person and must not
+        // trigger the warning. The client shows every candidate and may resend
+        // with force=1 after staff confirm this really is a different person.
         $force = filter_var($data['force'] ?? false, FILTER_VALIDATE_BOOLEAN);
         if (!$force) {
-            $existing = $this->findDuplicate(
+            $matches = $this->findPotentialMatches(
                 $patient->name,
+                $patient->blood_type,
                 $patient->township,
                 $patient->ward,
                 $patient->village
             );
-            if ($existing !== null) {
+            if (!empty($matches)) {
                 return $this->asJson([
                     'status' => 'duplicate',
-                    'message' => 'ဤအမည်၊ မြို့နယ်နှင့် ရပ်ကွက်/ကျေးရွာ တူညီသော လူနာ ရှိပြီးဖြစ်ပါသည်။',
-                    'data' => $existing,
+                    'message' => 'အမည်၊ သွေးအုပ်စု၊ မြို့နယ်နှင့် ရပ်ကွက်/ကျေးရွာ အားလုံး တူညီသော လူနာ ရှိနေပါသည်။',
+                    // Keep data as the first row for older app versions while
+                    // the new client reads and displays every match.
+                    'data' => $matches[0],
+                    'matches' => $matches,
                 ]);
             }
         }
@@ -160,31 +165,44 @@ class PatientController extends BaseApiController
     }
 
     /**
-     * Find an existing patient that matches on name + township + ward + village.
+     * Find potential patient matches. Name, blood type, township and
+     * ward/village must ALL be equal for a record to count as a match —
+     * sharing just a name (or just a blood group) is not enough.
      *
-     * Matching is whitespace-trimmed and case-insensitive. Comparing both ward
-     * and village keeps a ward-based address distinct from a village-based one
-     * even when they share a name and township. Returns the row as an array, or
-     * null when no duplicate exists.
+     * Matching is whitespace-trimmed and case-insensitive. A blank blood type
+     * only matches records that also have none, so an exact double-submit is
+     * still caught. Empty structured locations cannot establish a location
+     * match and are deliberately skipped instead of grouping unrelated legacy
+     * rows. Returns deterministic candidates for the comparison dialog.
      */
-    private function findDuplicate($name, $township, $ward, $village, $excludeId = null)
+    private function findPotentialMatches($name, $bloodType, $township, $ward, $village, $excludeId = null)
     {
         $name = trim((string) $name);
-        if ($name === '') {
-            return null;
+        $bloodType = trim((string) $bloodType);
+        $township = trim((string) $township);
+        $ward = trim((string) $ward);
+        $village = trim((string) $village);
+
+        if ($name === '' || $township === '' || ($ward === '' && $village === '')) {
+            return [];
         }
 
         $query = Patient::find()
             ->andWhere('LOWER(TRIM(name)) = LOWER(:name)', [':name' => $name])
-            ->andWhere("LOWER(TRIM(COALESCE(township, ''))) = LOWER(:township)", [':township' => trim((string) $township)])
-            ->andWhere("LOWER(TRIM(COALESCE(ward, ''))) = LOWER(:ward)", [':ward' => trim((string) $ward)])
-            ->andWhere("LOWER(TRIM(COALESCE(village, ''))) = LOWER(:village)", [':village' => trim((string) $village)]);
+            ->andWhere("LOWER(TRIM(COALESCE(blood_type, ''))) = LOWER(:bloodType)", [':bloodType' => $bloodType])
+            ->andWhere("LOWER(TRIM(COALESCE(township, ''))) = LOWER(:township)", [':township' => $township])
+            ->andWhere("LOWER(TRIM(COALESCE(ward, ''))) = LOWER(:ward)", [':ward' => $ward])
+            ->andWhere("LOWER(TRIM(COALESCE(village, ''))) = LOWER(:village)", [':village' => $village]);
 
         if ($excludeId !== null) {
             $query->andWhere(['<>', 'id', $excludeId]);
         }
 
-        return $query->asArray()->one();
+        return $query
+            ->orderBy(['id' => SORT_ASC])
+            ->limit(20)
+            ->asArray()
+            ->all();
     }
 
     /**

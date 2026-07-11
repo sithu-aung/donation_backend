@@ -30,7 +30,10 @@ class DonarRecordController extends BaseApiController
         $records = $query
             ->offset($page * $limit)
             ->limit($limit)
-            ->orderBy(['id' => SORT_ASC])
+            // A corrected record must move to its chronological position. ID
+            // order leaves newly-created rows at the bottom after their date is
+            // edited, which makes the ledger appear out of sequence.
+            ->orderBy(['date' => SORT_ASC, 'id' => SORT_ASC])
             ->asArray()
             ->all();
 
