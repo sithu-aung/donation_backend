@@ -15,12 +15,14 @@ class ReportController extends BaseAuthController
     {
         // Fetch data from providers
         $totalMember = $this->getTotalMembers();
-        $totalDonations = $this->getTotalDonations();
+        $totalDonations = $this->getTotalDonations(); // money ledger sum (kyat)
         $totalExpenses = $this->getTotalExpenses();
-        $donations = $this->getBloodDonations();
+        $donations = $this->getBloodDonations(); // blood donation record count
         $totalPatient = $this->getTotalPatients();
 
         // Return the data as JSON
+        // NOTE: 'totalDonations' is the MONEY ledger sum (desktop finance card
+        // reads it); the blood donation COUNT is 'donations'.
         return $this->asJson([
             'status' => 'ok',
             'data' => [
