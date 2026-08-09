@@ -15,10 +15,14 @@ class SearchMemberController extends BaseApiController
             $sql = "
                 SELECT
                     m.*,
-                    last_d.max_date as last_donation_date
+                    last_d.max_date as last_donation_date,
+                    last_d.donation_count as donation_count
                 FROM member m
                 INNER JOIN (
-                    SELECT member, MAX(donation_date) as max_date
+                    SELECT
+                        member,
+                        MAX(donation_date) as max_date,
+                        COUNT(*) as donation_count
                     FROM donation
                     GROUP BY member
                 ) last_d ON m.id = last_d.member
@@ -78,22 +82,15 @@ class SearchMemberController extends BaseApiController
             $fourMonthsAgo = date('Y-m-d', strtotime('-4 months'));
 
             foreach ($members as &$member) {
-                // Get all donations count for this member
-                $donationCount = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM donation WHERE member = :member_id",
-                    [':member_id' => $member['id']]
-                )->queryScalar();
-
+                // COUNT and MAX were already calculated by the aggregate above.
+                // Reusing them avoids two database queries for every result row.
+                $donationCount = intval($member['donation_count'] ?? 0);
                 $beforeCount = intval($member['member_count'] ?? 0);
                 $member['total_count'] = strval($beforeCount + $donationCount);
 
-                // Get the actual last donation date (not just for the filtered year)
-                $actualLastDate = Yii::$app->db->createCommand(
-                    "SELECT MAX(donation_date) FROM donation WHERE member = :member_id",
-                    [':member_id' => $member['id']]
-                )->queryScalar();
-
+                $actualLastDate = $member['last_donation_date'] ?? null;
                 $member['last_date'] = $actualLastDate ?? $member['last_donation_date'];
+                unset($member['donation_count']);
 
                 // Calculate status based on actual last donation date
                 // If last donation was within 4 months, status = 'unavailable'
@@ -104,6 +101,7 @@ class SearchMemberController extends BaseApiController
                     $member['status'] = 'available';
                 }
             }
+            unset($member);
             
             return $this->asJson([
                 'status' => 'ok',
@@ -133,7 +131,11 @@ class SearchMemberController extends BaseApiController
 
         // Join with donations to get last donation date and sort by it
         $query->leftJoin('donation d', 'member.id = d.member')
-              ->select(['member.*', 'MAX(d.donation_date) as last_donation_date'])
+              ->select([
+                  'member.*',
+                  'MAX(d.donation_date) as last_donation_date',
+                  'COUNT(d.id) as donation_count',
+              ])
               ->groupBy('member.id')
               ->orderBy('MAX(d.donation_date) ASC NULLS FIRST'); // Farthest to nearest, NULL first
 
@@ -141,45 +143,38 @@ class SearchMemberController extends BaseApiController
         $queryClone = clone $query;
         $members = $query->offset($page * $limit)
                          ->limit($limit)
+                         ->asArray()
                          ->all();
 
         // Calculate total donation count and status for each member
         $fourMonthsAgo = date('Y-m-d', strtotime('-4 months'));
 
-        foreach ($members as $member) {
-            // Load donations relation
-            $donations = $member->getDonations()->all();
-            $systemDonationCount = count($donations);
-            $beforeCount = intval($member->member_count ?? 0);
-            $totalCount = $beforeCount + $systemDonationCount;
-            $member->total_count = strval($totalCount);
+        foreach ($members as &$member) {
+            $systemDonationCount = intval($member['donation_count'] ?? 0);
+            $beforeCount = intval($member['member_count'] ?? 0);
+            $member['total_count'] = strval($beforeCount + $systemDonationCount);
 
-            // Get the actual last donation date (most recent donation)
-            $actualLastDate = Yii::$app->db->createCommand(
-                "SELECT MAX(donation_date) FROM donation WHERE member = :member_id",
-                [':member_id' => $member->id]
-            )->queryScalar();
+            $actualLastDate = $member['last_donation_date'] ?? null;
 
             // Set last_date to the actual last donation date
             if ($actualLastDate) {
-                $member->last_date = $actualLastDate;
-            } else {
-                // Fallback to query result if no donations in system
-                $attributes = $member->getAttributes();
-                if (isset($attributes['last_donation_date']) && $attributes['last_donation_date']) {
-                    $member->last_date = $attributes['last_donation_date'];
-                }
+                $member['last_date'] = $actualLastDate;
             }
 
             // Calculate status based on actual last donation date
             // If last donation was within 4 months, status = 'unavailable'
             // If last donation was more than 4 months ago or no donations, status = 'available'
             if ($actualLastDate && $actualLastDate > $fourMonthsAgo) {
-                $member->status = 'unavailable';
+                $member['status'] = 'unavailable';
             } else {
-                $member->status = 'available';
+                $member['status'] = 'available';
             }
+
+            // Aggregate aliases are internal implementation details; removing
+            // them keeps the API response identical to serialized Member rows.
+            unset($member['last_donation_date'], $member['donation_count']);
         }
+        unset($member);
 
         // Get the total count after applying filters
         $total = $queryClone->count();
