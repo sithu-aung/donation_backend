@@ -76,6 +76,11 @@ class SearchMemberController extends BaseApiController
                 ['ilike', 'm.phone', $q],
                 ['ilike', 'm.blood_bank_card', $q],
                 ['ilike', 'm.member_id', $q],
+                // Member addresses are stored as one composite value containing
+                // the street/address, quarter (ward), and township. Searching
+                // this column therefore covers every location segment without
+                // relying on non-existent member.quarter/township columns.
+                ['ilike', 'm.address', $q],
             ]);
         }
 
@@ -91,6 +96,7 @@ class SearchMemberController extends BaseApiController
                   'm.name',
                   'm.blood_type',
                   'm.phone',
+                  'm.address',
                   'm.note',
                   'm.status',
                   'm.member_count',
