@@ -16,7 +16,8 @@ class SearchMemberController extends BaseApiController
         $limit,
         $q = '',
         $blood_type = null,
-        $availability = null
+        $availability = null,
+        $last_donation = null
     )
     {
         $page = max(0, (int)$page);
@@ -39,6 +40,29 @@ class SearchMemberController extends BaseApiController
         }
         if ($availability === '') {
             $availability = null;
+        }
+
+        // "Not donated since ...": a year is an inclusive upper bound rather
+        // than a single year, because the group uses this to reach the donors
+        // who have rested the longest. Members who never donated have no date
+        // to compare, are the most rested of all, and so match every year as
+        // well as their own `never` option.
+        $last_donation = strtolower(trim((string)$last_donation));
+        if ($last_donation === 'all') {
+            $last_donation = '';
+        }
+        $lastDonationYear = null;
+        $lastDonationNever = false;
+        if ($last_donation !== '') {
+            if ($last_donation === 'never') {
+                $lastDonationNever = true;
+            } elseif (preg_match('/^\d{4}$/', $last_donation)) {
+                $lastDonationYear = (int)$last_donation;
+            } else {
+                throw new BadRequestHttpException(
+                    'Invalid last donation filter.'
+                );
+            }
         }
 
         // Keep analysis, the selected total, and visible rows on one database
@@ -112,8 +136,26 @@ class SearchMemberController extends BaseApiController
               ])
               ->groupBy('m.id');
 
-        // These counters always describe every member matching name/blood type,
-        // even when one availability chip is selected for the visible page.
+        // The effective last donation date is an aggregate, so it can only be
+        // filtered after grouping. Applying it to the directory itself — before
+        // the analysis and page queries clone it — keeps the availability
+        // counters describing exactly the set the visible rows come from.
+        if ($lastDonationNever) {
+            $directoryQuery->andHaving(
+                new Expression("({$effectiveLastDateSql}) IS NULL")
+            );
+        } elseif ($lastDonationYear !== null) {
+            // $lastDonationYear is a validated four-digit integer.
+            $directoryQuery->andHaving(new Expression(
+                "(({$effectiveLastDateSql}) IS NULL OR "
+                . "({$effectiveLastDateSql})::date "
+                . "<= DATE '{$lastDonationYear}-12-31')"
+            ));
+        }
+
+        // These counters always describe every member matching the directory
+        // filters — name, blood type, and last-donation year — even when one
+        // availability chip is selected for the visible page.
         $analysisRow = (new Query())
             ->from(['directory' => clone $directoryQuery])
             ->select([
