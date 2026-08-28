@@ -4,6 +4,7 @@ namespace app\controllers;
 
 use app\models\Donation;
 use Yii;
+use yii\web\BadRequestHttpException;
 
 class DonationController extends BaseApiController
 {
@@ -95,6 +96,58 @@ class DonationController extends BaseApiController
         $donations = $query->asArray()->all();
 
         // Map member data to memberObj for frontend compatibility
+        foreach ($donations as &$donation) {
+            if (isset($donation['member0'])) {
+                $donation['memberObj'] = $donation['member0'];
+            }
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => $donations,
+            'total' => $count,
+            'page' => $page,
+            'limit' => $limit,
+            'hasMore' => ($page * $limit + $limit) < $count,
+        ]);
+    }
+
+    /**
+     * Return every donation recorded on one exact local calendar date.
+     *
+     * A half-open timestamp range keeps records with any time on the selected
+     * date and avoids wrapping donation_date in a SQL function.
+     */
+    public function actionByDate($date, $page = 0, $limit = 100)
+    {
+        $selectedDate = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        $dateErrors = \DateTimeImmutable::getLastErrors();
+        $hasDateErrors = is_array($dateErrors)
+            && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0);
+
+        if ($selectedDate === false || $hasDateErrors || $selectedDate->format('Y-m-d') !== $date) {
+            throw new BadRequestHttpException('Date must use the YYYY-MM-DD format.');
+        }
+
+        $page = max(0, (int) $page);
+        $limit = min(500, max(1, (int) $limit));
+        $nextDate = $selectedDate->modify('+1 day');
+
+        $query = Donation::find()
+            ->with(['member0' => function($query) {
+                $query->select(['id', 'name', 'blood_type', 'phone', 'address', 'nrc', 'father_name','blood_bank_card','birth_date','member_id']);
+            }])
+            ->andWhere(['>=', 'donation_date', $selectedDate->format('Y-m-d H:i:s')])
+            ->andWhere(['<', 'donation_date', $nextDate->format('Y-m-d H:i:s')]);
+
+        $count = $query->count();
+        $donations = $query
+            ->offset($page * $limit)
+            ->limit($limit)
+            ->orderBy(['donation_date' => SORT_ASC, 'id' => SORT_ASC])
+            ->asArray()
+            ->all();
+
         foreach ($donations as &$donation) {
             if (isset($donation['member0'])) {
                 $donation['memberObj'] = $donation['member0'];

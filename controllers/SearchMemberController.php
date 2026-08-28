@@ -42,11 +42,9 @@ class SearchMemberController extends BaseApiController
             $availability = null;
         }
 
-        // "Not donated since ...": a year is an inclusive upper bound rather
-        // than a single year, because the group uses this to reach the donors
-        // who have rested the longest. Members who never donated have no date
-        // to compare, are the most rested of all, and so match every year as
-        // well as their own `never` option.
+        // A year matches the exact calendar year of the effective last
+        // donation. Members who never donated have no year to compare and are
+        // available only through their own `never` option.
         $last_donation = strtolower(trim((string)$last_donation));
         if ($last_donation === 'all') {
             $last_donation = '';
@@ -147,9 +145,12 @@ class SearchMemberController extends BaseApiController
         } elseif ($lastDonationYear !== null) {
             // $lastDonationYear is a validated four-digit integer.
             $directoryQuery->andHaving(new Expression(
-                "(({$effectiveLastDateSql}) IS NULL OR "
+                "(({$effectiveLastDateSql}) IS NOT NULL AND "
                 . "({$effectiveLastDateSql})::date "
-                . "<= DATE '{$lastDonationYear}-12-31')"
+                . ">= make_date({$lastDonationYear}, 1, 1) AND "
+                . "({$effectiveLastDateSql})::date "
+                . "< (make_date({$lastDonationYear}, 1, 1) "
+                . "+ INTERVAL '1 year'))"
             ));
         }
 
