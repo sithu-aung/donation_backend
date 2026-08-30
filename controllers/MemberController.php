@@ -315,7 +315,7 @@ class MemberController extends BaseApiController
         // writes to a shared Spaces bucket, so it must not be anonymous.
         $authHeader = Yii::$app->request->headers->get('Authorization');
         $token = $authHeader ? str_replace('Bearer ', '', $authHeader) : '';
-        if (strlen($token) !== 64 || Account::findOne(['access_token' => $token]) === null) {
+        if (\app\models\AccountToken::findAccountByToken($token) === null) {
             Yii::$app->response->statusCode = 401;
             return $this->asJson(['status' => 'error', 'message' => 'Unauthorized']);
         }

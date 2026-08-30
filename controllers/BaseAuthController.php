@@ -3,6 +3,7 @@
 namespace app\controllers;
 
 use app\models\Account;
+use app\models\AccountToken;
 use Yii;
 use yii\filters\AccessControl;
 use yii\helpers\ArrayHelper;
@@ -41,10 +42,7 @@ class BaseAuthController extends BaseApiController
             return false;
         }
         $accessToken = str_replace('Bearer ', '', $authHeader);
-        if (strlen($accessToken) !== 64) {
-            return false;
-        }
-        $this->user = Account::findOne(['access_token' => $accessToken]);
+        $this->user = AccountToken::findAccountByToken($accessToken);
         return $this->user !== null;
     }
 }
