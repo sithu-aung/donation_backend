@@ -21,9 +21,14 @@ The backend runs on the shared Contabo VPS — **no longer on AWS**.
 ssh root@207.180.244.55
 cd /var/www/donation_backend
 git pull origin main
+php yii migrate --interactive=0
 php yii cache/flush-all        # if needed
 chown -R www-data:www-data runtime web/assets
 ```
+
+Run migrations before releasing a client that depends on new database fields.
+For the Facebook-post time persistence feature, the backend migration must be
+applied before the updated Flutter app is used.
 
 nginx/php-fpm reload is normally NOT needed for PHP code changes.
 
@@ -50,7 +55,7 @@ journalctl -u php8.3-fpm -f
 
 3. Database connection:
 ```bash
-php yii migrate/status
+php yii migrate/new
 ```
 
 ## History

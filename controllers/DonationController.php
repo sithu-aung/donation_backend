@@ -2,12 +2,27 @@
 
 namespace app\controllers;
 
+use app\models\AccountToken;
 use app\models\Donation;
 use Yii;
 use yii\web\BadRequestHttpException;
+use yii\web\ConflictHttpException;
+use yii\web\UnauthorizedHttpException;
 
 class DonationController extends BaseApiController
 {
+    private const FACEBOOK_POST_TIMES = [
+        'မနက်စောစော',
+        'မနက်ပိုင်း',
+        'ဒီနေ့မနက်',
+        'နေ့လယ်ပိုင်း',
+        'ဒီနေ့နေ့လယ်',
+        'ညနေပိုင်း',
+        'ဒီနေ့ညနေ',
+        'ညနေစောင်း',
+        'ဒီနေ့ည',
+    ];
+
     public function actionIndex($page, $limit, $q = '', $order = 'desc', $disease = '', $hospital = '', $year = '')
     {
         $query = Donation::find()
@@ -198,6 +213,205 @@ class DonationController extends BaseApiController
             'limit' => $limit,
             'hasMore' => ($page * $limit + $limit) < $count,
         ]);
+    }
+
+    /**
+     * Persist one Facebook-post time phrase for every donation in a patient
+     * group. One SQL update keeps grouped donor rows consistent.
+     */
+    public function actionSavePostTime()
+    {
+        $this->requireFacebookPostAuthentication();
+
+        $rawDonationIds = Yii::$app->request->post('donation_ids');
+        if (!is_array($rawDonationIds) || $rawDonationIds === []) {
+            throw new BadRequestHttpException('donation_ids must be a non-empty array.');
+        }
+
+        $donationIds = [];
+        foreach ($rawDonationIds as $rawDonationId) {
+            if (is_int($rawDonationId)) {
+                $donationId = $rawDonationId;
+            } elseif (is_string($rawDonationId) && ctype_digit($rawDonationId)) {
+                $donationId = (int) $rawDonationId;
+            } else {
+                throw new BadRequestHttpException('Every donation_id must be a positive integer.');
+            }
+
+            if ($donationId <= 0) {
+                throw new BadRequestHttpException('Every donation_id must be a positive integer.');
+            }
+            $donationIds[] = $donationId;
+        }
+        $donationIds = array_values(array_unique($donationIds));
+
+        $postTime = Yii::$app->request->post('time_of_day');
+        if (!is_string($postTime) || $postTime === '') {
+            throw new BadRequestHttpException('time_of_day is required.');
+        }
+
+        if (!in_array($postTime, self::FACEBOOK_POST_TIMES, true)
+            && !$this->isValidCustomNightTime($postTime)) {
+            throw new BadRequestHttpException('time_of_day is not a supported Facebook post time.');
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $groupDonationIds = $this->findFacebookPostGroupIds($donationIds);
+            $updatedCount = Donation::updateAll(
+                ['facebook_post_time' => $postTime],
+                ['id' => $groupDonationIds]
+            );
+            if ($updatedCount !== count($groupDonationIds)) {
+                throw new ConflictHttpException(
+                    'The donation group changed while its post time was being saved.'
+                );
+            }
+            $transaction->commit();
+        } catch (\Throwable $error) {
+            if ($transaction->isActive) {
+                $transaction->rollBack();
+            }
+            throw $error;
+        }
+
+        return $this->asJson([
+            'status' => 'ok',
+            'data' => [
+                'donation_ids' => $groupDonationIds,
+                'time_of_day' => $postTime,
+                'updated_count' => $updatedCount,
+            ],
+        ]);
+    }
+
+    private function requireFacebookPostAuthentication(): void
+    {
+        $authHeader = Yii::$app->request->headers->get('Authorization');
+        if (!is_string($authHeader)
+            || !preg_match('/^Bearer\s+(\S+)$/i', trim($authHeader), $matches)
+            || AccountToken::findAccountByToken($matches[1]) === null) {
+            throw new UnauthorizedHttpException('A valid staff session is required.');
+        }
+    }
+
+    /**
+     * Verify that the submitted rows still form one UI card, then expand the
+     * stale client snapshot to every current row in that date/patient/hospital
+     * group. This prevents a partial batch from leaving collaborators with
+     * conflicting saved times.
+     *
+     * @param int[] $donationIds
+     * @return int[]
+     */
+    private function findFacebookPostGroupIds(array $donationIds): array
+    {
+        $donations = Donation::find()
+            ->select([
+                'id',
+                'donation_date',
+                'patient_id',
+                'patient_name',
+                'hospital',
+            ])
+            ->where(['id' => $donationIds])
+            ->orderBy(['id' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        if (count($donations) !== count($donationIds)) {
+            throw new BadRequestHttpException(
+                'One or more donations no longer exist.'
+            );
+        }
+
+        $first = $donations[0];
+        $date = $this->facebookPostDate($first['donation_date']);
+        $patientId = $this->nullableInt($first['patient_id']);
+        $patientName = trim((string) ($first['patient_name'] ?? ''));
+        $hospital = trim((string) ($first['hospital'] ?? ''));
+
+        if ($patientId === null && $patientName === '') {
+            throw new BadRequestHttpException(
+                'The donation group has no patient identity.'
+            );
+        }
+
+        foreach ($donations as $donation) {
+            $samePatient = $patientId !== null
+                ? $this->nullableInt($donation['patient_id']) === $patientId
+                : $this->nullableInt($donation['patient_id']) === null
+                    && trim((string) ($donation['patient_name'] ?? '')) === $patientName;
+
+            if ($this->facebookPostDate($donation['donation_date']) !== $date
+                || trim((string) ($donation['hospital'] ?? '')) !== $hospital
+                || !$samePatient) {
+                throw new BadRequestHttpException(
+                    'donation_ids must belong to one date, patient, and hospital.'
+                );
+            }
+        }
+
+        $nextDate = (new \DateTimeImmutable($date))->modify('+1 day');
+        $query = Donation::find()
+            ->select('id')
+            ->andWhere(['>=', 'donation_date', "$date 00:00:00"])
+            ->andWhere(['<', 'donation_date', $nextDate->format('Y-m-d 00:00:00')])
+            ->andWhere(
+                "TRIM(COALESCE(hospital, '')) = :facebookPostHospital",
+                [':facebookPostHospital' => $hospital]
+            );
+
+        if ($patientId !== null) {
+            $query->andWhere(['patient_id' => $patientId]);
+        } else {
+            $query
+                ->andWhere(['patient_id' => null])
+                ->andWhere(
+                    "TRIM(COALESCE(patient_name, '')) = :facebookPostPatient",
+                    [':facebookPostPatient' => $patientName]
+                );
+        }
+
+        return array_map('intval', $query->orderBy(['id' => SORT_ASC])->column());
+    }
+
+    private function facebookPostDate(mixed $rawDate): string
+    {
+        $date = substr((string) $rawDate, 0, 10);
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        $dateErrors = \DateTimeImmutable::getLastErrors();
+        $hasDateErrors = is_array($dateErrors)
+            && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0);
+
+        if ($parsed === false || $hasDateErrors || $parsed->format('Y-m-d') !== $date) {
+            throw new BadRequestHttpException(
+                'The donation group contains an invalid date.'
+            );
+        }
+
+        return $date;
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        return $value === null || $value === '' ? null : (int) $value;
+    }
+
+    private function isValidCustomNightTime(string $postTime): bool
+    {
+        if (!preg_match('/^ည\(([၀-၉]{1,2}):([၀-၉]{2})\)$/u', $postTime, $matches)) {
+            return false;
+        }
+
+        $myanmarToAscii = [
+            '၀' => '0', '၁' => '1', '၂' => '2', '၃' => '3', '၄' => '4',
+            '၅' => '5', '၆' => '6', '၇' => '7', '၈' => '8', '၉' => '9',
+        ];
+        $hour = (int) strtr($matches[1], $myanmarToAscii);
+        $minute = (int) strtr($matches[2], $myanmarToAscii);
+
+        return $hour >= 1 && $hour <= 12 && $minute >= 0 && $minute <= 59;
     }
 
     public function actionView($id)

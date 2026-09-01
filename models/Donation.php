@@ -18,6 +18,7 @@ use Yii;
  * @property string|null $patient_disease
  * @property string|null $patient_name
  * @property int|null $patient_id
+ * @property string|null $facebook_post_time
  * @property string $owner_id
  *
  * @property Member $member0
@@ -44,6 +45,7 @@ class Donation extends \yii\db\ActiveRecord
             [['member', 'patient_id'], 'integer'],
             [['owner_id'], 'required'],
             [['date', 'hospital', 'member_id', 'patient_address', 'patient_age', 'patient_disease', 'patient_name', 'owner_id'], 'string', 'max' => 255],
+            [['facebook_post_time'], 'string', 'max' => 64],
             [['member'], 'exist', 'skipOnError' => true, 'targetClass' => Member::class, 'targetAttribute' => ['member' => 'id']],
             [['patient_id'], 'exist', 'skipOnError' => true, 'targetClass' => Patient::class, 'targetAttribute' => ['patient_id' => 'id']],
         ];
@@ -66,6 +68,7 @@ class Donation extends \yii\db\ActiveRecord
             'patient_disease' => 'Patient Disease',
             'patient_name' => 'Patient Name',
             'patient_id' => 'Patient ID',
+            'facebook_post_time' => 'Facebook Post Time',
             'owner_id' => 'Owner ID',
         ];
     }
