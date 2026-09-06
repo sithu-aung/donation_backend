@@ -19,6 +19,7 @@ class ReportController extends BaseAuthController
         $totalExpenses = $this->getTotalExpenses();
         $donations = $this->getBloodDonations(); // blood donation record count
         $totalPatient = $this->getTotalPatients();
+        $totalSpecialEvents = $this->getTotalSpecialEvents();
 
         // Return the data as JSON
         // NOTE: 'totalDonations' is the MONEY ledger sum (desktop finance card
@@ -31,6 +32,7 @@ class ReportController extends BaseAuthController
                 'totalExpenses' => $totalExpenses,
                 'donations' => $donations,
                 'totalPatient' => $totalPatient,
+                'totalSpecialEvents' => $totalSpecialEvents,
             ],
         ]);
     }
@@ -603,5 +605,10 @@ class ReportController extends BaseAuthController
             ->distinct()
             ->count();
         return $patients;
+    }
+
+    protected function getTotalSpecialEvents()
+    {
+        return SpecialEvent::find()->count();
     }
 }

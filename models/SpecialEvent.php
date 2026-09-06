@@ -34,8 +34,11 @@ class SpecialEvent extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['haemoglobin', 'hbs_ag', 'hcv_ab', 'mp_ict', 'retro_test', 'vdrl_test', 'total'], 'default', 'value' => null],
-            [['haemoglobin', 'hbs_ag', 'hcv_ab', 'mp_ict', 'retro_test', 'vdrl_test', 'total'], 'integer'],
+            [['lab_name', 'date'], 'filter', 'filter' => 'trim'],
+            [['lab_name', 'date'], 'required'],
+            [['date'], 'date', 'format' => 'php:Y-m-d'],
+            [['haemoglobin', 'hbs_ag', 'hcv_ab', 'mp_ict', 'retro_test', 'vdrl_test'], 'default', 'value' => 0],
+            [['haemoglobin', 'hbs_ag', 'hcv_ab', 'mp_ict', 'retro_test', 'vdrl_test', 'total'], 'integer', 'min' => 0],
             [['date', 'lab_name'], 'string', 'max' => 255],
         ];
     }
